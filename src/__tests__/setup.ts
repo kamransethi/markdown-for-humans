@@ -7,6 +7,22 @@
 
 import { resetAllMocks } from '../__mocks__/vscode';
 
+// Polyfill File API for Node.js test environment
+// File is a browser API that's not available in Node.js by default
+if (typeof File === 'undefined') {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (global as any).File = class File extends Blob {
+    name: string;
+    lastModified: number;
+
+    constructor(fileBits: BlobPart[], fileName: string, options?: FilePropertyBag) {
+      super(fileBits, options);
+      this.name = fileName;
+      this.lastModified = options?.lastModified ?? Date.now();
+    }
+  };
+}
+
 // Reset VS Code mocks before each test
 beforeEach(() => {
   resetAllMocks();
