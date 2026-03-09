@@ -99,7 +99,7 @@ export class WordCountFeature {
       vscode.StatusBarAlignment.Right,
       100 // Priority - higher = further left
     );
-    this.statusBarItem.command = 'markdownForHumans.showDetailedStats';
+    this.statusBarItem.command = 'gptAiMarkdownEditor.showDetailedStats';
   }
 
   /**

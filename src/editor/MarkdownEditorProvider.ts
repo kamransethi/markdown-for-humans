@@ -148,25 +148,25 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
    */
   private getWebviewSettings(config: vscode.WorkspaceConfiguration) {
     return {
-      skipResizeWarning: config.get<boolean>('markdownForHumans.imageResize.skipWarning', false),
-      mediaPath: config.get<string>('markdownForHumans.mediaPath', 'media'),
-      mediaPathBase: config.get<string>('markdownForHumans.mediaPathBase', 'sameNameFolder'),
-      lineSpacing: config.get<number>('markdownForHumans.lineSpacing', 1),
-      paragraphSpacing: config.get<number>('markdownForHumans.paragraphSpacing', 1),
-      tableCellSpacing: config.get<number>('markdownForHumans.tableCellSpacing', 0.1),
+      skipResizeWarning: config.get<boolean>('gptAiMarkdownEditor.imageResize.skipWarning', false),
+      mediaPath: config.get<string>('gptAiMarkdownEditor.mediaPath', 'media'),
+      mediaPathBase: config.get<string>('gptAiMarkdownEditor.mediaPathBase', 'sameNameFolder'),
+      lineSpacing: config.get<number>('gptAiMarkdownEditor.lineSpacing', 1),
+      paragraphSpacing: config.get<number>('gptAiMarkdownEditor.paragraphSpacing', 1),
+      tableCellSpacing: config.get<number>('gptAiMarkdownEditor.tableCellSpacing', 0.1),
       tableCellHorizontalSpacing: config.get<number>(
-        'markdownForHumans.tableCellHorizontalSpacing',
+        'gptAiMarkdownEditor.tableCellHorizontalSpacing',
         0.5
       ),
-      themeOverride: config.get<string>('markdownForHumans.themeOverride', 'system'),
-      developerMode: config.get<boolean>('markdownForHumans.developerMode', true),
+      themeOverride: config.get<string>('gptAiMarkdownEditor.themeOverride', 'system'),
+      developerMode: config.get<boolean>('gptAiMarkdownEditor.developerMode', true),
     };
   }
 
   public static register(context: vscode.ExtensionContext): vscode.Disposable {
     const provider = new MarkdownEditorProvider(context);
     const providerRegistration = vscode.window.registerCustomEditorProvider(
-      'markdownForHumans.editor',
+      'gptAiMarkdownEditor.editor',
       provider,
       {
         webviewOptions: {
@@ -179,7 +179,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
     return providerRegistration;
   }
 
-  constructor(private readonly context: vscode.ExtensionContext) {}
+  constructor(private readonly context: vscode.ExtensionContext) { }
 
   /**
    * Get the document directory for file-based documents, or workspace folder for untitled files
@@ -259,7 +259,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
    */
   private getImageStorageBasePath(document: vscode.TextDocument): string | null {
     const config = vscode.workspace.getConfiguration();
-    const mediaPathBase = config.get<string>('markdownForHumans.mediaPathBase', 'sameNameFolder');
+    const mediaPathBase = config.get<string>('gptAiMarkdownEditor.mediaPathBase', 'sameNameFolder');
 
     // Untitled docs: default to workspace-level saves when possible (we don't know
     // the final markdown file directory yet).
@@ -294,7 +294,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
     requestedFolder: string
   ): string | null {
     const config = vscode.workspace.getConfiguration();
-    const mediaPathBase = config.get<string>('markdownForHumans.mediaPathBase', 'sameNameFolder');
+    const mediaPathBase = config.get<string>('gptAiMarkdownEditor.mediaPathBase', 'sameNameFolder');
 
     if (mediaPathBase === 'sameNameFolder' || requestedFolder === '__sameNameFolder__') {
       const docPath = document.uri.fsPath;
@@ -403,11 +403,11 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
     // Listen for configuration changes and update webview
     const configChangeSubscription = vscode.workspace.onDidChangeConfiguration(e => {
       if (
-        e.affectsConfiguration('markdownForHumans.imageResize.skipWarning') ||
-        e.affectsConfiguration('markdownForHumans.imagePath') ||
-        e.affectsConfiguration('markdownForHumans.mediaPathBase') ||
-        e.affectsConfiguration('markdownForHumans.themeOverride') ||
-        e.affectsConfiguration('markdownForHumans.developerMode')
+        e.affectsConfiguration('gptAiMarkdownEditor.imageResize.skipWarning') ||
+        e.affectsConfiguration('gptAiMarkdownEditor.imagePath') ||
+        e.affectsConfiguration('gptAiMarkdownEditor.mediaPathBase') ||
+        e.affectsConfiguration('gptAiMarkdownEditor.themeOverride') ||
+        e.affectsConfiguration('gptAiMarkdownEditor.developerMode')
       ) {
         const config = vscode.workspace.getConfiguration();
         const settings = this.getWebviewSettings(config);
@@ -484,7 +484,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
    * Handle messages from webview
    */
   private handleWebviewMessage(
-    message: { type: string; [key: string]: unknown },
+    message: { type: string;[key: string]: unknown },
     document: vscode.TextDocument,
     webview: vscode.Webview
   ) {
@@ -494,7 +494,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
         // Save to VS Code settings for persistence
         vscode.workspace
           .getConfiguration()
-          .update('markdownForHumans.themeOverride', theme, vscode.ConfigurationTarget.Global);
+          .update('gptAiMarkdownEditor.themeOverride', theme, vscode.ConfigurationTarget.Global);
         // Immediately apply to the webview so it takes effect right away
         webview.postMessage({
           type: 'settingsUpdate',
@@ -684,7 +684,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
    */
   private async handleOpenAttachmentsFolder(document: vscode.TextDocument): Promise<void> {
     const config = vscode.workspace.getConfiguration();
-    const mediaFolderName = config.get<string>('markdownForHumans.mediaPath', 'media');
+    const mediaFolderName = config.get<string>('gptAiMarkdownEditor.mediaPath', 'media');
 
     // Resolve absolute path using same logic as saving images
     const targetDir = this.resolveMediaTargetFolder(document, mediaFolderName);
@@ -749,7 +749,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
       if (isOutsideWorkspace) {
         // Copy file to workspace media folder
         const config = vscode.workspace.getConfiguration();
-        const mediaFolderName = config.get<string>('markdownForHumans.mediaPath', 'media');
+        const mediaFolderName = config.get<string>('gptAiMarkdownEditor.mediaPath', 'media');
         const targetDir = this.resolveMediaTargetFolder(document, mediaFolderName);
 
         if (targetDir) {
@@ -795,7 +795,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
    * Handle document export request from webview
    */
   private async handleExportDocument(
-    message: { type: string; [key: string]: unknown },
+    message: { type: string;[key: string]: unknown },
     document: vscode.TextDocument
   ): Promise<void> {
     const format = message.format as string;
@@ -816,7 +816,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
    * so that images with spaces or special characters in filenames work correctly.
    */
   private handleResolveImageUri(
-    message: { type: string; [key: string]: unknown },
+    message: { type: string;[key: string]: unknown },
     document: vscode.TextDocument,
     webview: vscode.Webview
   ): void {
@@ -894,7 +894,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
    * Computes relative path from document to the image, or copies image if outside workspace
    */
   private async handleWorkspaceImage(
-    message: { type: string; [key: string]: unknown },
+    message: { type: string;[key: string]: unknown },
     document: vscode.TextDocument,
     webview: vscode.Webview
   ): Promise<void> {
@@ -945,7 +945,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
         }
 
         const config = vscode.workspace.getConfiguration();
-        const imageFolderName = config.get<string>('markdownForHumans.mediaPath', 'media');
+        const imageFolderName = config.get<string>('gptAiMarkdownEditor.mediaPath', 'media');
         const imagesDir = path.join(saveBasePath, imageFolderName);
 
         // Create folder if needed
@@ -1050,7 +1050,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
    * Saves the image to the workspace and returns the relative path
    */
   private async handleSaveImage(
-    message: { type: string; [key: string]: unknown },
+    message: { type: string;[key: string]: unknown },
     document: vscode.TextDocument,
     webview: vscode.Webview
   ): Promise<void> {
@@ -1166,7 +1166,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
    * - otherFiles: list of other markdown files referencing the same image (with line numbers)
    */
   private async handleGetImageReferences(
-    message: { type: string; [key: string]: unknown },
+    message: { type: string;[key: string]: unknown },
     document: vscode.TextDocument,
     webview: vscode.Webview
   ): Promise<void> {
@@ -1395,7 +1395,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
   }
 
   private async handleCheckImageRename(
-    message: { type: string; [key: string]: unknown },
+    message: { type: string;[key: string]: unknown },
     document: vscode.TextDocument,
     webview: vscode.Webview
   ): Promise<void> {
@@ -1462,7 +1462,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
    * Renames the file and updates references in markdown files across workspace
    */
   private async handleRenameImage(
-    message: { type: string; [key: string]: unknown },
+    message: { type: string;[key: string]: unknown },
     document: vscode.TextDocument,
     webview: vscode.Webview
   ): Promise<void> {
@@ -1593,7 +1593,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
    * Check if image is in workspace
    */
   private async handleCheckImageInWorkspace(
-    message: { type: string; [key: string]: unknown },
+    message: { type: string;[key: string]: unknown },
     document: vscode.TextDocument,
     webview: vscode.Webview
   ): Promise<void> {
@@ -1668,7 +1668,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
    * Get image metadata (file size, dimensions, last modified, etc.)
    */
   private async handleGetImageMetadata(
-    message: { type: string; [key: string]: unknown },
+    message: { type: string;[key: string]: unknown },
     document: vscode.TextDocument,
     webview: vscode.Webview
   ): Promise<void> {
@@ -1740,7 +1740,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
    * Handle reveal image in OS file manager (Finder/Explorer)
    */
   private async handleRevealImageInOS(
-    message: { type: string; [key: string]: unknown },
+    message: { type: string;[key: string]: unknown },
     document: vscode.TextDocument
   ): Promise<void> {
     const imagePath = message.imagePath as string;
@@ -1788,7 +1788,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
    * Handle reveal image in VS Code Explorer
    */
   private async handleRevealImageInExplorer(
-    message: { type: string; [key: string]: unknown },
+    message: { type: string;[key: string]: unknown },
     document: vscode.TextDocument
   ): Promise<void> {
     const imagePath = message.imagePath as string;
@@ -1836,7 +1836,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
    * Handle file search request from webview
    */
   private async handleSearchFiles(
-    message: { type: string; [key: string]: unknown },
+    message: { type: string;[key: string]: unknown },
     webview: vscode.Webview
   ): Promise<void> {
     try {
@@ -2032,7 +2032,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
    * Handle image link navigation (open image in VS Code preview)
    */
   private async handleOpenImage(
-    message: { type: string; [key: string]: unknown },
+    message: { type: string;[key: string]: unknown },
     document: vscode.TextDocument
   ): Promise<void> {
     const imagePath = String(message.path || '');
@@ -2113,7 +2113,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
    * Handle file link navigation (open file in VS Code)
    */
   private async handleOpenFileLink(
-    message: { type: string; [key: string]: unknown },
+    message: { type: string;[key: string]: unknown },
     document: vscode.TextDocument
   ): Promise<void> {
     try {
@@ -2148,15 +2148,15 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
           const workspacePath = workspaceFolders[0].uri.fsPath;
           // Use normalized path (already normalized above)
           const workspaceFileUri = vscode.Uri.file(path.resolve(workspacePath, normalizedFilePath));
-          console.log('[MD4H] Trying workspace-relative path:', workspaceFileUri.fsPath);
+          console.log('[GPT-AI] Trying workspace-relative path:', workspaceFileUri.fsPath);
           try {
             await vscode.workspace.fs.stat(workspaceFileUri);
             fileUri = workspaceFileUri;
             fileExists = true;
-            console.log('[MD4H] File exists (workspace-relative):', fileUri.fsPath);
+            console.log('[GPT-AI] File exists (workspace-relative):', fileUri.fsPath);
           } catch {
             // Not found in workspace either
-            console.log('[MD4H] File not found in workspace-relative path');
+            console.log('[GPT-AI] File not found in workspace-relative path');
           }
         }
       }
@@ -2164,7 +2164,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
       if (!fileExists) {
         // File not found, show error
         vscode.window.showWarningMessage(`File not found: ${filePath}`);
-        console.warn('[MD4H] File not found:', filePath);
+        console.warn('[GPT-AI] File not found:', filePath);
         return;
       }
 
@@ -2183,38 +2183,38 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
       ];
       const fileExtension = path.extname(fileUri.fsPath).toLowerCase();
       const isImage = imageExtensions.includes(fileExtension);
-      console.log('[MD4H] File extension:', fileExtension, '| Is image:', isImage);
+      console.log('[GPT-AI] File extension:', fileExtension, '| Is image:', isImage);
 
       if (isImage) {
         // For image files, use vscode.open command directly
         // This automatically opens images in VS Code's image preview
-        console.log('[MD4H] Attempting to open image file with vscode.open command');
+        console.log('[GPT-AI] Attempting to open image file with vscode.open command');
         try {
           await vscode.commands.executeCommand('vscode.open', fileUri);
-          console.log('[MD4H] Successfully opened image file:', fileUri.fsPath);
+          console.log('[GPT-AI] Successfully opened image file:', fileUri.fsPath);
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : String(error);
-          console.error('[MD4H] Failed to open image file:', errorMessage, error);
+          console.error('[GPT-AI] Failed to open image file:', errorMessage, error);
           vscode.window.showErrorMessage(`Failed to open image file: ${errorMessage}`);
         }
       } else {
         // For text files, use openTextDocument
-        console.log('[MD4H] Attempting to open text file with openTextDocument');
+        console.log('[GPT-AI] Attempting to open text file with openTextDocument');
         try {
           const doc = await vscode.workspace.openTextDocument(fileUri);
           await vscode.window.showTextDocument(doc);
-          console.log('[MD4H] Successfully opened file link:', fileUri.fsPath);
+          console.log('[GPT-AI] Successfully opened file link:', fileUri.fsPath);
         } catch (error) {
           // If it's not a text file, try vscode.open command as fallback
           const errorMessage = error instanceof Error ? error.message : String(error);
-          console.log('[MD4H] openTextDocument failed, error:', errorMessage);
+          console.log('[GPT-AI] openTextDocument failed, error:', errorMessage);
           if (errorMessage.includes('Binary') || errorMessage.includes('binary')) {
-            console.log('[MD4H] File is binary, trying vscode.open command as fallback');
+            console.log('[GPT-AI] File is binary, trying vscode.open command as fallback');
             try {
               await vscode.commands.executeCommand('vscode.open', fileUri);
-              console.log('[MD4H] Opened binary file using vscode.open command');
+              console.log('[GPT-AI] Opened binary file using vscode.open command');
             } catch (fallbackError) {
-              console.error('[MD4H] Failed to open file:', fallbackError);
+              console.error('[GPT-AI] Failed to open file:', fallbackError);
               vscode.window.showErrorMessage(`Failed to open file: ${errorMessage}`);
             }
           } else {
@@ -2224,7 +2224,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error('[MD4H] Failed to open file link:', errorMessage, error);
+      console.error('[GPT-AI] Failed to open file link:', errorMessage, error);
       vscode.window.showErrorMessage(`Failed to open file: ${errorMessage}`);
     }
   }
@@ -2233,7 +2233,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
    * Copy local image (outside workspace) to workspace
    */
   private async handleCopyLocalImageToWorkspace(
-    message: { type: string; [key: string]: unknown },
+    message: { type: string;[key: string]: unknown },
     document: vscode.TextDocument,
     webview: vscode.Webview
   ): Promise<void> {
@@ -2241,7 +2241,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
     const placeholderId = message.placeholderId as string;
     const targetFolder = (message.targetFolder as string) || 'images';
 
-    console.log(`[MD4H] Copying local image to workspace: ${absolutePath}`);
+    console.log(`[GPT-AI] Copying local image to workspace: ${absolutePath}`);
 
     try {
       // Read the source image
@@ -2316,7 +2316,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
         relativePath = './' + relativePath;
       }
 
-      console.log(`[MD4H] Local image copied successfully. Path: ${relativePath}`);
+      console.log(`[GPT-AI] Local image copied successfully. Path: ${relativePath}`);
 
       webview.postMessage({
         type: 'localImageCopied',
@@ -2326,7 +2326,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
       });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error(`[MD4H] Failed to copy local image: ${errorMessage}`);
+      console.error(`[GPT-AI] Failed to copy local image: ${errorMessage}`);
       vscode.window.showErrorMessage(`Failed to copy image: ${errorMessage}`);
       webview.postMessage({
         type: 'localImageCopyError',
@@ -2340,7 +2340,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
    * Handle setting update request from webview
    */
   private async handleUpdateSetting(
-    message: { type: string; [key: string]: unknown },
+    message: { type: string;[key: string]: unknown },
     webview: vscode.Webview
   ): Promise<void> {
     const key = message.key as string;
@@ -2349,7 +2349,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
     try {
       const config = vscode.workspace.getConfiguration();
       await config.update(key, value, vscode.ConfigurationTarget.Global);
-      console.log(`[MD4H] Setting updated: ${key} = ${value}`);
+      console.log(`[GPT-AI] Setting updated: ${key} = ${value}`);
 
       // Immediately notify webview of the setting change
       // This ensures the setting takes effect right away without waiting for next update
@@ -2361,7 +2361,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
       });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error(`[MD4H] Failed to update setting: ${errorMessage}`);
+      console.error(`[GPT-AI] Failed to update setting: ${errorMessage}`);
     }
   }
 
@@ -2377,7 +2377,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
   private async applyEdit(content: string, document: vscode.TextDocument): Promise<boolean> {
     const unwrappedContent = this.unwrapFrontmatterFromWebview(content);
     console.log(
-      `[MD4H] applyEdit: rawLen=${content.length}, unwrappedLen=${unwrappedContent.length}`
+      `[GPT-AI] applyEdit: rawLen=${content.length}, unwrappedLen=${unwrappedContent.length}`
     );
 
     // Normalize newlines of both strings before comparison to avoid phantom dirty states
@@ -2386,12 +2386,12 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
     const normalizedOld = document.getText().replace(/\r\n/g, '\n');
 
     if (normalizedNew === normalizedOld) {
-      console.log(`[MD4H] applyEdit: content already matches (length=${normalizedNew.length})`);
+      console.log(`[GPT-AI] applyEdit: content already matches (length=${normalizedNew.length})`);
       return true;
     }
 
     console.log(
-      `[MD4H] applyEdit: content mismatch. New=${normalizedNew.length} chars, Old=${normalizedOld.length} chars`
+      `[GPT-AI] applyEdit: content mismatch. New=${normalizedNew.length} chars, Old=${normalizedOld.length} chars`
     );
 
     // Mark this edit to prevent feedback loop
@@ -2414,7 +2414,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
       if (!success) {
         const errorMsg = 'Failed to save changes. The file may be read-only or locked.';
         vscode.window.showErrorMessage(errorMsg);
-        console.error('[MD4H] applyEdit failed:', { uri: docUri });
+        console.error('[GPT-AI] applyEdit failed:', { uri: docUri });
       }
       return success;
     } catch (error) {
@@ -2423,7 +2423,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
           ? `Failed to save changes: ${error.message}`
           : 'Failed to save changes: Unknown error';
       vscode.window.showErrorMessage(errorMsg);
-      console.error('[MD4H] applyEdit exception:', error);
+      console.error('[GPT-AI] applyEdit exception:', error);
       return false;
     }
   }
@@ -2496,7 +2496,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
       try {
         await editFn();
       } catch (err) {
-        console.error(`[MD4H] Error in enqueued edit:`, err);
+        console.error(`[GPT-AI] Error in enqueued edit:`, err);
       }
     });
 
@@ -2526,7 +2526,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
 
     // Read the current theme from config
     const config = vscode.workspace.getConfiguration();
-    const themeOverride = config.get<string>('markdownForHumans.themeOverride', 'system');
+    const themeOverride = config.get<string>('gptAiMarkdownEditor.themeOverride', 'system');
 
     // Use a nonce for security
     const nonce = getNonce();
@@ -2549,11 +2549,11 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
         <link id="theme-style-link" href="" rel="stylesheet">
         
         <script nonce="${nonce}">
-          window.md4hThemeLightUri = "${lightStyleUri}";
-          window.md4hThemeDarkUri = "${darkStyleUri}";
-          window.md4hLastResolvedTheme = 'dark';
+          window.gptAiThemeLightUri = "${lightStyleUri}";
+          window.gptAiThemeDarkUri = "${darkStyleUri}";
+          window.gptAiLastResolvedTheme = 'dark';
 
-          window.md4hResolveVsCodeTheme = function() {
+          window.gptAiResolveVsCodeTheme = function() {
             try {
               const htmlCls = document.documentElement.classList;
               const bodyCls = document.body ? document.body.classList : null;
@@ -2568,7 +2568,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
                 return 'dark';
               }
             } catch (err) {
-              console.error('[MD4H][THEME] Failed to resolve VS Code theme classes:', err);
+              console.error('[GPT-AI][THEME] Failed to resolve VS Code theme classes:', err);
             }
 
             return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
@@ -2576,19 +2576,19 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
               : 'light';
           };
 
-          window.md4hSetThemeStylesheet = function(mode) {
+          window.gptAiSetThemeStylesheet = function(mode) {
             const link = document.getElementById('theme-style-link');
             if (!link) return;
 
             if (mode === 'light') {
               link.disabled = false;
-              link.href = window.md4hThemeLightUri;
+              link.href = window.gptAiThemeLightUri;
               return;
             }
 
             if (mode === 'dark') {
               link.disabled = false;
-              link.href = window.md4hThemeDarkUri;
+              link.href = window.gptAiThemeDarkUri;
               return;
             }
 
@@ -2597,7 +2597,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
             link.removeAttribute('href');
           };
           
-          window.md4hApplyTheme = function(theme) {
+          window.gptAiApplyTheme = function(theme) {
             try {
               const body = document.body || document.documentElement;
               const requested = theme === 'light' || theme === 'dark' || theme === 'system'
@@ -2605,7 +2605,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
                 : 'system';
 
               const resolvedTheme = requested === 'system'
-                ? window.md4hResolveVsCodeTheme()
+                ? window.gptAiResolveVsCodeTheme()
                 : requested;
 
               if (requested === 'system') {
@@ -2614,27 +2614,27 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
                 body.setAttribute('data-theme-override', requested);
               }
 
-              window.md4hSetThemeStylesheet(requested);
-              window.md4hLastResolvedTheme = resolvedTheme;
-              console.warn('[MD4H][THEME] Applied', { requested, resolvedTheme });
+              window.gptAiSetThemeStylesheet(requested);
+              window.gptAiLastResolvedTheme = resolvedTheme;
+              console.warn('[GPT-AI][THEME] Applied', { requested, resolvedTheme });
 
               window.dispatchEvent(
-                new CustomEvent('md4hThemeChanged', { detail: { theme: resolvedTheme } })
+                new CustomEvent('gptAiThemeChanged', { detail: { theme: resolvedTheme } })
               );
             } catch (err) {
-              console.error('[MD4H][THEME] Failed to apply theme:', err, { theme });
+              console.error('[GPT-AI][THEME] Failed to apply theme:', err, { theme });
             }
           };
 
           // Initial apply only. Re-apply later only via explicit settingsUpdate messages.
           document.addEventListener('DOMContentLoaded', () => {
-            window.md4hCurrentThemeOverride = '${themeOverride}';
-            console.warn('[MD4H][THEME] Bootstrap ready', { override: window.md4hCurrentThemeOverride });
-            window.md4hApplyTheme('${themeOverride}');
+            window.gptAiCurrentThemeOverride = '${themeOverride}';
+            console.warn('[GPT-AI][THEME] Bootstrap ready', { override: window.gptAiCurrentThemeOverride });
+            window.gptAiApplyTheme('${themeOverride}');
           });
         </script>
         
-        <title>Markdown for Humans</title>
+        <title>GPT-AI Markdown Editor</title>
       </head>
       <body>
         <div id="editor"></div>

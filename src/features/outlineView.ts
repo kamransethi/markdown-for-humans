@@ -32,13 +32,13 @@ class OutlineTreeItem extends vscode.TreeItem {
         ? { label: labelText, highlights: [[0, labelText.length]] }
         : labelText,
       collapsible ??
-        (node.children.length
-          ? vscode.TreeItemCollapsibleState.Collapsed
-          : vscode.TreeItemCollapsibleState.None)
+      (node.children.length
+        ? vscode.TreeItemCollapsibleState.Collapsed
+        : vscode.TreeItemCollapsibleState.None)
     );
     this.description = `H${node.level}`;
     this.command = {
-      command: 'markdownForHumans.navigateToHeading',
+      command: 'gptAiMarkdownEditor.navigateToHeading',
       title: 'Go to heading',
       arguments: [node.pos],
     };
@@ -123,7 +123,7 @@ export class OutlineViewProvider implements vscode.TreeDataProvider<OutlineTreeI
   private updateFilterContext() {
     vscode.commands.executeCommand(
       'setContext',
-      'markdownForHumans.outlineFilterActive',
+      'gptAiMarkdownEditor.outlineFilterActive',
       this.filterText.length > 0
     );
   }

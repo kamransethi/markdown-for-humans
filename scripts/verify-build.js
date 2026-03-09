@@ -61,30 +61,28 @@ const CRITICAL_FEATURES = {
   webviewJs: {
     file: 'dist/webview.js',
     required: [
-      'setupImageResize', // Global function (not minified)
-      'image-resize-modal', // Feature usage
-      'neverAskAgain', // Dialog option
-      'skipResizeWarning', // Setting name
-      'resizeImage', // Message type
-      'copyLocalImageToWorkspace', // Feature
+      'image-resize-handle', // New resize handles
+      'mermaid-split-wrapper', // Mermaid support
+      'link-dialog', // Optimized link dialog
+      'insertWorkspaceImage', // Image handling
+      'image-context-menu', // Image context menu
     ],
   },
   webviewCss: {
     file: 'dist/webview.css',
     required: [
-      '.image-menu-button',
-      '.image-resize-modal-panel',
-      '.image-resize-modal-overlay',
-      '.image-wrapper',
+      '.image-resize-handle',
+      '.mermaid-split-wrapper',
+      '.link-dialog',
       '.markdown-image',
     ],
   },
   extensionJs: {
     file: 'dist/extension.js',
     required: [
-      'resizeImage',
-      'checkImageInWorkspace',
-      'copyLocalImageToWorkspace',
+      'searchFiles', // For file link dialog
+      'browseLocalFile', // For file link dialog
+      'revealImageInOS', // Image menu action
     ],
   },
 };

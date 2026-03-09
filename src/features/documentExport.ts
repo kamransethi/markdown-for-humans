@@ -151,14 +151,14 @@ export async function exportDocument(
               }
             } catch (error) {
               // Log error but don't fail export - opening is a convenience feature
-              console.warn('[MD4H] Failed to open PDF:', error);
+              console.warn('[GPT-AI] Failed to open PDF:', error);
             }
           }
         }
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         vscode.window.showErrorMessage(`Export failed: ${errorMessage}`);
-        console.error('[MD4H] Export error:', error);
+        console.error('[GPT-AI] Export error:', error);
       }
     }
   );
@@ -180,7 +180,7 @@ async function ensureChromePath(
   progress: vscode.Progress<{ message?: string; increment?: number }>,
   token: vscode.CancellationToken
 ): Promise<string | null> {
-  const config = vscode.workspace.getConfiguration('markdownForHumans');
+  const config = vscode.workspace.getConfiguration('gptAiMarkdownEditor');
   const report = (message: string, increment?: number) => {
     if (token.isCancellationRequested) {
       return;
@@ -413,7 +413,7 @@ async function promptForChromePathInlineResolver(
     const validation = await validateChromePath(candidate);
     if (validation.valid) {
       const resolved = resolveChromeExecutable(candidate);
-      const config = vscode.workspace.getConfiguration('markdownForHumans');
+      const config = vscode.workspace.getConfiguration('gptAiMarkdownEditor');
       await config.update('chromePath', resolved, vscode.ConfigurationTarget.Global);
       return resolved;
     }
@@ -459,7 +459,7 @@ async function exportToPDF(
   const htmlWithBase = completeHtml.replace('<head>', `<head><base href="file://${docDir}/">`);
 
   // Write the HTML to a temp file for Chrome to print
-  const tempDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'md4h-export-'));
+  const tempDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'gpt-ai-export-'));
   const tempHtmlPath = path.join(tempDir, 'export.html');
 
   try {
@@ -498,7 +498,7 @@ async function exportToPDF(
     try {
       await fs.promises.rm(tempDir, { recursive: true, force: true });
     } catch (cleanupError) {
-      console.warn('[MD4H] Failed to clean up temporary export directory:', cleanupError);
+      console.warn('[GPT-AI] Failed to clean up temporary export directory:', cleanupError);
     }
   }
 }
@@ -536,7 +536,7 @@ async function runChrome(executablePath: string, args: string[]): Promise<void> 
       } else {
         reject(
           new Error(
-            `Chrome exited with code ${code}. Install or point to a working Chrome/Chromium via "markdownForHumans.chromePath".`
+            `Chrome exited with code ${code}. Install or point to a working Chrome/Chromium via "gptAiMarkdownEditor.chromePath".`
           )
         );
       }
@@ -560,7 +560,7 @@ export interface ChromeDetectionResult {
  */
 export async function findChromeExecutable(): Promise<ChromeDetectionResult> {
   // User-configured path takes precedence
-  const config = vscode.workspace.getConfiguration('markdownForHumans');
+  const config = vscode.workspace.getConfiguration('gptAiMarkdownEditor');
   const customChromePathRaw = config.get<string>('chromePath');
   const customChromePath = customChromePathRaw
     ? resolveChromeExecutable(customChromePathRaw)

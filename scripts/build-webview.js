@@ -61,11 +61,14 @@ async function build() {
       await esbuild.build(buildOptions);
       if (isProduction || noSourcemap) {
         // Ensure release builds don't leave stale sourcemaps in dist/
-        for (const mapFile of ['dist/webview.js.map', 'dist/webview.css.map']) {
-          try {
-            fs.unlinkSync(mapFile);
-          } catch {
-            // ignore
+        const distFiles = fs.readdirSync('dist');
+        for (const file of distFiles) {
+          if (file.endsWith('.map')) {
+            try {
+              fs.unlinkSync(`dist/${file}`);
+            } catch {
+              // ignore
+            }
           }
         }
       }

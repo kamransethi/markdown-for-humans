@@ -16,12 +16,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/kamransethi/markdown-for-humans"
+    "url": "https://github.com/kamransethi/gpt-ai-markdown-editor"
   },
   "bugs": {
-    "url": "https://github.com/kamransethi/markdown-for-humans/issues"
+    "url": "https://github.com/kamransethi/gpt-ai-markdown-editor/issues"
   },
-  "homepage": "https://github.com/kamransethi/markdown-for-humans#readme",
+  "homepage": "https://github.com/kamransethi/gpt-ai-markdown-editor#readme",
   "engines": {
     "vscode": "^1.85.0"
   },
@@ -65,24 +65,14 @@
   "contributes": {
     "customEditors": [
       {
-        "viewType": "markdownForHumans.editor",
-        "displayName": "Markdown for Humans",
+        "viewType": "gptAiMarkdownEditor.editor",
+        "displayName": "GPT-AI Markdown Editor",
         "selector": [
           {
-            "filenamePattern": "*.md",
-            "scheme": "file"
+            "filenamePattern": "*.md"
           },
           {
-            "filenamePattern": "*.markdown",
-            "scheme": "file"
-          },
-          {
-            "filenamePattern": "*.md",
-            "scheme": "untitled"
-          },
-          {
-            "filenamePattern": "*.markdown",
-            "scheme": "untitled"
+            "filenamePattern": "*.markdown"
           }
         ],
         "priority": "option"
@@ -90,73 +80,74 @@
     ],
     "commands": [
       {
-        "command": "markdownForHumans.openFile",
-        "title": "Open with Markdown for Humans"
+        "command": "gptAiMarkdownEditor.openFile",
+        "title": "Open with GPT-AI Markdown Editor"
       },
       {
-        "command": "markdownForHumans.outline.revealCurrent",
+        "command": "gptAiMarkdownEditor.outline.revealCurrent",
         "title": "Outline: Reveal Current Heading",
         "icon": "$(target)"
       },
       {
-        "command": "markdownForHumans.outline.filter",
+        "command": "gptAiMarkdownEditor.outline.filter",
         "title": "Outline: Filter Headings",
         "icon": "$(search)"
       },
       {
-        "command": "markdownForHumans.outline.clearFilter",
+        "command": "gptAiMarkdownEditor.outline.clearFilter",
         "title": "Outline: Clear Filter",
         "icon": "$(close)"
       },
       {
-        "command": "markdownForHumans.openAttachmentsFolder",
+        "command": "gptAiMarkdownEditor.openAttachmentsFolder",
         "title": "Open Attachments Folder"
       }
     ],
     "views": {
       "explorer": [
         {
-          "id": "markdownForHumansOutline",
-          "name": "Markdown for Humans: Outline",
-          "when": "markdownForHumans.isActive"
+          "id": "gptAiMarkdownEditorOutline",
+          "name": "GPT-AI Markdown Editor: Outline",
+          "when": "gptAiMarkdownEditor.isActive",
+          "icon": "$(layout-sidebar-right)"
         }
       ]
     },
     "menus": {
       "explorer/context": [
         {
-          "command": "markdownForHumans.openFile",
+          "command": "gptAiMarkdownEditor.openFile",
           "when": "resourceExtname == .md",
           "group": "navigation"
         }
       ],
       "view/title": [
         {
-          "command": "markdownForHumans.outline.revealCurrent",
-          "when": "view == markdownForHumansOutline",
+          "command": "gptAiMarkdownEditor.outline.revealCurrent",
+          "when": "view == gptAiMarkdownEditorOutline",
           "group": "navigation@1"
         },
         {
-          "command": "markdownForHumans.outline.filter",
-          "when": "view == markdownForHumansOutline && !markdownForHumans.outlineFilterActive",
+          "command": "gptAiMarkdownEditor.outline.filter",
+          "when": "view == gptAiMarkdownEditorOutline && !gptAiMarkdownEditor.outlineFilterActive",
           "group": "navigation@2"
         },
         {
-          "command": "markdownForHumans.outline.clearFilter",
-          "when": "view == markdownForHumansOutline && markdownForHumans.outlineFilterActive",
+          "command": "gptAiMarkdownEditor.outline.clearFilter",
+          "when": "view == gptAiMarkdownEditorOutline && gptAiMarkdownEditor.outlineFilterActive",
           "group": "navigation@2"
         }
       ]
     },
     "configuration": {
-      "title": "Markdown for Humans",
+      "title": "GPT-AI Markdown Editor",
       "properties": {
-        "markdownForHumans.mediaPath": {
+        "gptAiMarkdownEditor.mediaPath": {
           "type": "string",
           "default": "media",
           "description": "Subfolder name for saved media files (images, attachments). Only used when Media Path Base is 'relativeToDocument' or 'workspaceFolder'."
         },
-        "markdownForHumans.mediaPathBase": {
+        "gptAiMarkdownEditor.mediaPathBase": {
           "type": "string",
           "enum": [
             "sameNameFolder",
@@ -171,45 +162,45 @@
           "default": "sameNameFolder",
           "description": "Controls where media files (images, attachments) are saved."
         },
-        "markdownForHumans.chromePath": {
+        "gptAiMarkdownEditor.chromePath": {
           "type": "string",
           "default": "",
           "markdownDescription": "Path to Google Chrome or Chromium executable for PDF export. Leave empty to auto-detect.\n\n**Download Chrome:**\n- [Windows/Mac/Linux](https://www.google.com/chrome/)\n- [Chromium (open source)](https://www.chromium.org/getting-involved/download-chromium/)\n\n**Common paths:**\n- **Mac:** `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`\n- **Windows:** `C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe`\n- **Linux:** `/usr/bin/google-chrome` or `/usr/bin/chromium`"
         },
-        "markdownForHumans.imageResize.skipWarning": {
+        "gptAiMarkdownEditor.imageResize.skipWarning": {
           "type": "boolean",
           "default": false,
           "description": "Skip the warning dialog when resizing images. When enabled, images will be resized immediately without confirmation."
         },
-        "markdownForHumans.lineSpacing": {
+        "gptAiMarkdownEditor.lineSpacing": {
           "type": "number",
           "default": 1,
           "minimum": 1,
           "maximum": 3,
           "description": "Line height multiplier for body text in the editor (e.g., 1.7 = 170% of font size)."
         },
-        "markdownForHumans.paragraphSpacing": {
+        "gptAiMarkdownEditor.paragraphSpacing": {
           "type": "number",
           "default": 1,
           "minimum": 0,
           "maximum": 3,
           "description": "Extra bottom margin between paragraphs, in em units."
         },
-        "markdownForHumans.tableCellSpacing": {
+        "gptAiMarkdownEditor.tableCellSpacing": {
           "type": "number",
           "default": 0.1,
           "minimum": 0,
           "maximum": 2,
           "description": "Vertical padding inside table cells, in em units."
         },
-        "markdownForHumans.tableCellHorizontalSpacing": {
+        "gptAiMarkdownEditor.tableCellHorizontalSpacing": {
           "type": "number",
           "default": 0.2,
           "minimum": 0,
           "maximum": 3,
           "description": "Horizontal padding inside table cells, in em units."
         },
-        "markdownForHumans.themeOverride": {
+        "gptAiMarkdownEditor.themeOverride": {
           "type": "string",
           "enum": [
             "system",
@@ -219,7 +210,7 @@
           "default": "system",
           "description": "Override the editor theme mode (System, Light, or Dark) manually. Choosing System will follow your VS Code theme."
         },
-        "markdownForHumans.developerMode": {
+        "gptAiMarkdownEditor.developerMode": {
           "type": "boolean",
           "default": true,
           "markdownDescription": "**Developer Mode**: Show detailed runtime errors in-editor and keep diagnostic logging enabled for troubleshooting.",

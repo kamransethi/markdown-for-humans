@@ -2,7 +2,7 @@
 
 **Seamless WYSIWYG markdown editing for VS Code** — Write markdown the way humans think.
 
-> **Note:** This project is a community-maintained fork of the excellent [GPT-AI Markdown Editor](https://github.com/kamransethi/markdown-for-humans) by Concretios. It has been forked to build and maintain advanced features (like drag handles, text highlighting, font colors, and modular table support) while keeping the extension fully open and free.
+> **Note:** This project is a community-maintained fork of the excellent [Markdown for Humans](https://github.com/concretios/markdown-for-humans) by Concretios. It has been forked to build and maintain advanced features (like drag handles, text highlighting, font colors, and modular table support) while keeping the extension fully open and free.
 
 ![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/kamransethi.gpt-ai-markdown-editor?label=VS%20Code%20Marketplace&logo=visual-studio-code) ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg) ![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)
 
