@@ -433,7 +433,10 @@ function saveDocument() {
         plainTextLength,
         docSize: editor.state.doc.content.size,
       };
-      console.error('[GPT-AI] Serialization produced empty markdown for non-empty document', details);
+      console.error(
+        '[GPT-AI] Serialization produced empty markdown for non-empty document',
+        details
+      );
       reportWebviewIssue(
         'error',
         '[SAVE] Serialization produced empty markdown for non-empty document; save blocked to prevent data loss',
@@ -1107,7 +1110,9 @@ function applyWebviewSettings(message: any) {
 
   if (message.themeOverride) {
     (window as any).gptaiCurrentThemeOverride = message.themeOverride;
-    console.warn('[GPT-AI][THEME] settingsUpdate received', { themeOverride: message.themeOverride });
+    console.warn('[GPT-AI][THEME] settingsUpdate received', {
+      themeOverride: message.themeOverride,
+    });
     if (typeof (window as any).gptaiApplyTheme === 'function') {
       (window as any).gptaiApplyTheme(message.themeOverride);
     }
@@ -1166,7 +1171,9 @@ window.addEventListener('message', (event: MessageEvent) => {
         break;
       case 'saved':
         if (typeof message.requestId === 'string') {
-          console.log(`[GPT-AI][SAVE][${message.requestId}] Received "saved" signal from extension`);
+          console.log(
+            `[GPT-AI][SAVE][${message.requestId}] Received "saved" signal from extension`
+          );
         } else {
           console.log('[GPT-AI] Received "saved" signal from extension');
         }

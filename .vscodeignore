@@ -84,6 +84,11 @@ Desktop.ini
 !package.json
 !CHANGELOG.md
 !icon.png
+demo.html
+test_doc.md
+test-tags.ts
+test-tags2.ts
+test-list-serialization.ts
 
 # Exclude VSIX from package even if in dist/
 dist/**/*.vsix

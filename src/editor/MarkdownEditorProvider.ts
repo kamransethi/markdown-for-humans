@@ -9,7 +9,7 @@ import * as path from 'path';
 import * as os from 'os';
 import { outlineViewProvider } from '../features/outlineView';
 import { setActiveWebviewPanel, getActiveWebviewPanel } from '../activeWebview';
-import { getNonce } from './util';
+import { getNonce } from './utils';
 
 /**
  * Parse an image filename to extract source prefix
@@ -929,7 +929,9 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
 
     // If path is invalid or image is outside workspace, copy it to workspace
     if (!isValidPath || !withinWorkspace) {
-      console.log(`[GPT-AI] Image is outside workspace or has invalid path, copying to workspace...`);
+      console.log(
+        `[GPT-AI] Image is outside workspace or has invalid path, copying to workspace...`
+      );
 
       try {
         // Read the source image
@@ -1157,8 +1159,6 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
       });
     }
   }
-
-
 
   /**
    * Compute image reference counts across the workspace for UI previews.
@@ -1529,7 +1529,9 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
         try {
           await vscode.workspace.fs.delete(newUri, { useTrash: true });
         } catch (error) {
-          console.warn(`[GPT-AI] Could not move existing file to trash, deleting directly: ${error}`);
+          console.warn(
+            `[GPT-AI] Could not move existing file to trash, deleting directly: ${error}`
+          );
           await vscode.workspace.fs.delete(newUri);
         }
       }
@@ -2646,8 +2648,6 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
     `;
   }
 }
-
-
 
 /**
  * Normalize an image path by URL-decoding each path segment.

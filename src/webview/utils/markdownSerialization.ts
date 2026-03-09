@@ -147,7 +147,9 @@ export function getEditorMarkdownForSync(editor: Editor): string {
   }
 
   if (normalizedSerialized !== null && normalizedSerialized.length === 0 && nonEmptyDoc) {
-    console.error('[GPT-AI] serialize(normalizedJson) returned empty string for non-empty document');
+    console.error(
+      '[GPT-AI] serialize(normalizedJson) returned empty string for non-empty document'
+    );
   }
 
   const rawSerialized = trySerialize('serialize(rawJson)', () =>

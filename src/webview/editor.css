@@ -15,8 +15,8 @@ body {
   --md-hover-bg: var(--vscode-list-hoverBackground);
 
   /* Semantic colors for markdown elements */
-  --md-code-bg: var(--vscode-textCodeBlock-background);
-  --md-code-fg: var(--vscode-textPreformat-foreground, var(--md-foreground));
+  --md-code-bg: #2a2d2e;
+  --md-code-fg: #cccccc;
   --md-quote-border: var(--vscode-textBlockQuote-border, var(--md-muted));
   --md-quote-bg: var(--vscode-textBlockQuote-background);
   --md-link-fg: var(--vscode-textLink-foreground);
@@ -253,13 +253,14 @@ body.vscode-dark {
 }
 
 .markdown-editor pre {
-  background-color: var(--md-code-bg);
+  background-color: #2a2d2e !important;
   border: 1px solid var(--md-border);
   padding: 20px;
   border-radius: 6px;
   overflow-x: auto;
   margin: 1em 0;
   line-height: 1.5;
+  color: #cccccc !important;
   position: relative;
 }
 
@@ -274,7 +275,7 @@ body.vscode-dark {
 /* Syntax highlighting - Code blocks */
 .code-block-highlighted {
   position: relative;
-  background-color: var(--md-code-bg);
+  background-color: #2a2d2e !important;
   border: 1px solid var(--md-border);
   border-radius: 6px;
   padding: 20px;
@@ -283,7 +284,7 @@ body.vscode-dark {
 
   line-height: 1.5;
   overflow-x: auto;
-  color: var(--hljs-color-default, inherit);
+  color: #c9d1d9 !important;
 }
 
 /* ============================================

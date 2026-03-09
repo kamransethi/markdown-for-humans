@@ -64,7 +64,7 @@ describe.skip('Document Export Integration', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => { });
+    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
     // Setup mock document and editor
     mockDocument = {

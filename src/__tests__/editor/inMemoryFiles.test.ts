@@ -78,7 +78,7 @@ jest.mock('vscode', () => ({
     constructor(
       public label: string | vscode.TreeItemLabel,
       public collapsibleState?: vscode.TreeItemCollapsibleState
-    ) { }
+    ) {}
   },
   TreeItemCollapsibleState: {
     None: 0,
@@ -89,14 +89,14 @@ jest.mock('vscode', () => ({
     constructor(
       public id: string,
       public color?: vscode.ThemeColor
-    ) { }
+    ) {}
   },
   ThemeColor: class ThemeColor {
-    constructor(public id: string) { }
+    constructor(public id: string) {}
   },
   EventEmitter: class EventEmitter<T> {
     public event = jest.fn();
-    fire = jest.fn((_data?: T) => { });
+    fire = jest.fn((_data?: T) => {});
     dispose = jest.fn();
   },
   ViewColumn: {

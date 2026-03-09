@@ -506,10 +506,10 @@ function handleHeadingExtraction(editor: Editor, query: string, urlInput: HTMLIn
 
     const filtered = query.trim()
       ? headingResults.filter(
-        h =>
-          h.text.toLowerCase().includes(query.toLowerCase()) ||
-          h.slug.toLowerCase().includes(query.toLowerCase())
-      )
+          h =>
+            h.text.toLowerCase().includes(query.toLowerCase()) ||
+            h.slug.toLowerCase().includes(query.toLowerCase())
+        )
       : headingResults;
 
     const limited = filtered.slice(0, 20);

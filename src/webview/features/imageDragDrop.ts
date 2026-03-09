@@ -226,9 +226,9 @@ async function handleWorkspaceImageDrop(
     insertPosOverride ??
     (e
       ? editor.view.posAtCoords({
-        left: e.clientX,
-        top: e.clientY,
-      })?.pos
+          left: e.clientX,
+          top: e.clientY,
+        })?.pos
       : editor.state.selection.from);
 
   // For workspace images, we ask the extension to handle the copy/link
@@ -543,7 +543,9 @@ function insertWorkspaceImage(
     // Verify the image was actually inserted
     setTimeout(() => {
       const images = document.querySelectorAll(`img[src="${relativePath}"]`);
-      console.log(`[GPT-AI] Verification: Found ${images.length} images with src="${relativePath}"`);
+      console.log(
+        `[GPT-AI] Verification: Found ${images.length} images with src="${relativePath}"`
+      );
     }, 100);
   } catch (error) {
     console.error(`[GPT-AI] Failed to insert workspace image:`, error);
