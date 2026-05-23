@@ -28,7 +28,7 @@ module.exports = [
         }
     }),
     {
-        ignores: ['dist/**', 'coverage/**', 'node_modules/**', 'eslint.config.js']
+        ignores: ['dist/**', 'coverage/**', 'node_modules/**', 'eslint.config.js', 'playwright-report/**', 'test-results/**', '.playwright/**', '.auth/**', '*-pw-artifacts/**', 'src/__tests__/playwright/**/*.js', 'src/__tests__/playwright/**/*.js.map']
     },
     {
         files: ['src/__tests__/**'],

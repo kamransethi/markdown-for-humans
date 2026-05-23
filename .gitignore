@@ -11,6 +11,11 @@ tsconfig.tsbuildinfo
 # Test outputs
 .vscode-test/
 coverage/
+playwright-report/
+test-results/
+.playwright/
+.auth/
+*-pw-artifacts/
 
 # Environment
 .env
@@ -59,3 +64,4 @@ CLAUDE.md
 # Package manager cache
 .npm-cache/
 **/.DS_Store
+
