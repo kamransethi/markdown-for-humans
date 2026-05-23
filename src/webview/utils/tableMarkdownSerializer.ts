@@ -54,11 +54,11 @@ function renderBlockNode(node: JSONContent, h: MarkdownRendererHelpers, depth = 
       const marker = BULLET_MARKERS[depth % BULLET_MARKERS.length];
       const indent = '  '.repeat(depth);
       const lines: string[] = [];
-      for (const item of (node.content || [])) {
+      for (const item of node.content || []) {
         // item is a listItem — separate its paragraph text from nested lists
         let mainText = '';
         const nested: string[] = [];
-        for (const child of (item.content || [])) {
+        for (const child of item.content || []) {
           if (child.type === 'bulletList' || child.type === 'orderedList') {
             nested.push(renderBlockNode(child, h, depth + 1));
           } else {
@@ -76,10 +76,10 @@ function renderBlockNode(node: JSONContent, h: MarkdownRendererHelpers, depth = 
       const indent = '  '.repeat(depth);
       let index = node.attrs?.start || 1;
       const lines: string[] = [];
-      for (const item of (node.content || [])) {
+      for (const item of node.content || []) {
         let mainText = '';
         const nested: string[] = [];
-        for (const child of (item.content || [])) {
+        for (const child of item.content || []) {
           if (child.type === 'bulletList' || child.type === 'orderedList') {
             nested.push(renderBlockNode(child, h, depth + 1));
           } else {

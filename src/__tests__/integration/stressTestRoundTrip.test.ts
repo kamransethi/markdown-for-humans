@@ -449,4 +449,3 @@ describe('STRESS_TEST_DOC.md roundtrip', () => {
     expect(serialized).toMatch(/<span style="color:/i);
   });
 });
-

@@ -81,7 +81,7 @@ export const WikilinkNode = Node.create({
   parseMarkdown(token) {
     const identifier = ((token as unknown as Record<string, string>).identifier ?? '').trim();
     if (!identifier) return [];
-    return this.type.create({ identifier, broken: false });
+    return { type: 'wikilink' as const, attrs: { identifier, broken: false } };
   },
 
   renderMarkdown(node) {

@@ -7,36 +7,27 @@
 /**
  * WikilinkSuggestion Extension
  *
- * ProseMirror plugin for autocomplete dropdown triggered by [[
- * - Floating dropdown with note suggestions
+ * Uses @tiptap/suggestion to provide an autocomplete dropdown triggered by [[.
+ * - char: '[[' with allowSpaces so note names with spaces work
+ * - Shows all notes on empty query, filters as user types
  * - Keyboard navigation (↑↓ Enter/Tab Esc)
- * - Case-insensitive filtering on title/identifier/aliases
- * - Real-time positioning following cursor
+ * - "Create: [[query]]" option when no matches found
  */
 
 import { Extension } from '@tiptap/core';
-import { Plugin, PluginKey } from '@tiptap/pm/state';
-import type { EditorView } from '@tiptap/pm/view';
+import Suggestion, { type SuggestionProps, type SuggestionKeyDownProps } from '@tiptap/suggestion';
+import { getIsBroken } from './WikilinkNode';
 import type { WikilinkNote } from '../../services/foam-integration';
 
-// Module-level state for suggestion data
+// Module-level cache populated by the extension host noteIndex message
 let noteCache: WikilinkNote[] = [];
 
 export function setWikilinkSuggestionNotes(notes: WikilinkNote[]): void {
   noteCache = notes;
 }
 
-interface DropdownState {
-  query: string;
-  from: number;
-  selectedIndex: number;
-  items: WikilinkNote[];
-  el: HTMLElement | null;
-}
-
 function filterNotes(query: string): WikilinkNote[] {
   const lowerQuery = query.toLowerCase().trim();
-  // Show all notes (up to 15) when no query yet — this is the initial [[  state
   if (!lowerQuery) return noteCache.slice(0, 15);
   return noteCache
     .filter(
@@ -48,194 +39,189 @@ function filterNotes(query: string): WikilinkNote[] {
     .slice(0, 15);
 }
 
-function createDropdownUI(state: DropdownState): void {
-  if (!state.el) {
-    state.el = document.createElement('div');
-    state.el.className = 'wikilink-suggestion';
-    document.body.appendChild(state.el);
+function buildItems(query: string): WikilinkNote[] {
+  const matches = filterNotes(query);
+  if (matches.length === 0 && query.trim()) {
+    // Offer to create a new note with the typed query as identifier
+    return [{ identifier: query.trim(), title: `Create: [[${query.trim()}]]`, fsPath: '', aliases: [], sections: [] }];
   }
-
-  state.el.innerHTML = '';
-
-  if (state.items.length === 0) {
-    if (state.query.trim()) {
-      // Offer to create a new note with this name
-      const createItem = document.createElement('div');
-      createItem.className = 'wikilink-suggestion__item wikilink-suggestion__create';
-      createItem.textContent = `Create: [[${state.query}]]`;
-      createItem.addEventListener('click', () => {
-        const event = new CustomEvent('wikilink:select', {
-          detail: { note: { identifier: state.query, title: state.query, fsPath: '', aliases: [], sections: [] }, from: state.from },
-        });
-        document.dispatchEvent(event);
-      });
-      state.el.appendChild(createItem);
-    } else {
-      const empty = document.createElement('div');
-      empty.className = 'wikilink-suggestion__empty';
-      empty.textContent = 'No notes found';
-      state.el.appendChild(empty);
-    }
-    return;
-  }
-
-  state.items.forEach((note, idx) => {
-    const item = document.createElement('div');
-    item.className = `wikilink-suggestion__item ${idx === state.selectedIndex ? 'selected' : ''}`;
-
-    const title = document.createElement('span');
-    title.className = 'wikilink-suggestion__title';
-    title.textContent = note.title;
-
-    const id = document.createElement('span');
-    id.className = 'wikilink-suggestion__id';
-    id.textContent = note.identifier;
-
-    item.appendChild(title);
-    item.appendChild(id);
-
-    item.addEventListener('click', () => {
-      // Fire selectItem on the editor view
-      const event = new CustomEvent('wikilink:select', { detail: { note, from: state.from } });
-      document.dispatchEvent(event);
-    });
-
-    item.addEventListener('mouseenter', () => {
-      state.selectedIndex = idx;
-      createDropdownUI(state);
-    });
-
-    state.el!.appendChild(item);
-  });
+  return matches;
 }
 
-function positionDropdown(el: HTMLElement, _from: number): void {
-  // Find cursor position via prosemirror DOM
-  const sel = window.getSelection();
-  if (!sel || sel.rangeCount === 0) return;
-  const range = sel.getRangeAt(0);
-  const rect = range.getBoundingClientRect();
-  if (!rect.width && !rect.height) return;
+// ---------------------------------------------------------------------------
+// Dropdown DOM helpers
+// ---------------------------------------------------------------------------
 
-  el.style.position = 'fixed';
+function renderDropdown(
+  el: HTMLElement,
+  items: WikilinkNote[],
+  selectedIndex: number,
+  query: string,
+  onSelect: (note: WikilinkNote) => void,
+  onHover: (idx: number) => void
+): void {
+  el.innerHTML = '';
+  items.forEach((note, idx) => {
+    const item = document.createElement('div');
+    const isCreate = note.identifier === CREATE_SENTINEL;
+    item.className = [
+      'wikilink-suggestion__item',
+      isCreate ? 'wikilink-suggestion__create' : '',
+      idx === selectedIndex ? 'selected' : '',
+    ]
+      .filter(Boolean)
+      .join(' ');
+
+    if (isCreate) {
+      item.textContent = note.title;
+    } else {
+      const titleEl = document.createElement('span');
+      titleEl.className = 'wikilink-suggestion__title';
+      titleEl.textContent = note.title;
+
+      const idEl = document.createElement('span');
+      idEl.className = 'wikilink-suggestion__id';
+      idEl.textContent = note.identifier !== note.title ? note.identifier : '';
+
+      item.appendChild(titleEl);
+      item.appendChild(idEl);
+    }
+
+    item.addEventListener('mousedown', e => {
+      e.preventDefault(); // keep editor focus
+      onSelect(note);
+    });
+    item.addEventListener('mouseenter', () => onHover(idx));
+    el.appendChild(item);
+  });
+
+  if (items.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'wikilink-suggestion__empty';
+    empty.textContent = query.trim() ? `No notes matching "${query}"` : 'No notes in index';
+    el.appendChild(empty);
+  }
+}
+
+function positionDropdown(el: HTMLElement, decorationNode: Element | null): void {
+  const anchor = decorationNode ?? (window.getSelection()?.getRangeAt(0)?.getBoundingClientRect() as unknown as Element);
+  if (!anchor) return;
+  const rect = anchor instanceof Element ? anchor.getBoundingClientRect() : (anchor as unknown as DOMRect);
   el.style.left = `${rect.left}px`;
   el.style.top = `${rect.bottom + 4}px`;
 }
 
-function destroyDropdown(state: DropdownState): void {
-  if (state.el) {
-    state.el.remove();
-    state.el = null;
-  }
-}
+// ---------------------------------------------------------------------------
+// Extension
+// ---------------------------------------------------------------------------
 
 export const WikilinkSuggestion = Extension.create({
   name: 'wikilinkSuggestion',
 
   addProseMirrorPlugins() {
-    const pluginKey = new PluginKey('wikilinkSuggestion');
-    const dropdownState: DropdownState = {
-      query: '',
-      from: 0,
-      selectedIndex: 0,
-      items: [],
-      el: null,
-    };
-
     return [
-      new Plugin({
-        key: pluginKey,
-        state: {
-          init: () => dropdownState,
-          apply: (tr, state) => state,
+      Suggestion<WikilinkNote>({
+        editor: this.editor,
+
+        char: '[[',
+        allowSpaces: true,
+
+        // Only activate when preceded by whitespace, start-of-line, or nothing
+        allowedPrefixes: null,
+
+        items: ({ query }) => buildItems(query),
+
+        command: ({ editor, range, props: note }) => {
+          const { identifier } = note;
+          editor
+            .chain()
+            .focus()
+            .deleteRange(range)
+            .insertContent({
+              type: 'wikilink',
+              attrs: { identifier, broken: getIsBroken(identifier) },
+            })
+            .run();
         },
-        props: {
-          handleKeyDown: (view, event) => {
-            if (!dropdownState.el || dropdownState.items.length === 0) {
-              return false;
-            }
 
-            if (event.key === 'ArrowDown') {
-              dropdownState.selectedIndex =
-                (dropdownState.selectedIndex + 1) % dropdownState.items.length;
-              createDropdownUI(dropdownState);
-              return true;
-            }
+        render: () => {
+          let el: HTMLElement | null = null;
+          let currentProps: SuggestionProps<WikilinkNote> | null = null;
+          let selectedIndex = 0;
 
-            if (event.key === 'ArrowUp') {
-              dropdownState.selectedIndex =
-                (dropdownState.selectedIndex - 1 + dropdownState.items.length) %
-                dropdownState.items.length;
-              createDropdownUI(dropdownState);
-              return true;
-            }
+          function redraw(): void {
+            if (!el || !currentProps) return;
+            renderDropdown(
+              el,
+              currentProps.items,
+              selectedIndex,
+              currentProps.query,
+              note => currentProps?.command(note),
+              idx => {
+                selectedIndex = idx;
+                redraw();
+              }
+            );
+            positionDropdown(el, currentProps.decorationNode);
+          }
 
-            if (event.key === 'Enter' || event.key === 'Tab') {
-              const selected = dropdownState.items[dropdownState.selectedIndex];
-              if (selected) {
-                const tr = view.state.tr;
-                tr.deleteRange(dropdownState.from, view.state.selection.$anchor.pos);
-                view.dispatch(tr);
-                view.dispatch(
-                  view.state.tr.insertText(`[[${selected.identifier}]]`, dropdownState.from)
-                );
-                destroyDropdown(dropdownState);
+          function mount(): void {
+            el = document.createElement('div');
+            el.className = 'wikilink-suggestion';
+            document.body.appendChild(el);
+          }
+
+          function unmount(): void {
+            el?.remove();
+            el = null;
+            currentProps = null;
+            selectedIndex = 0;
+          }
+
+          return {
+            onStart(props) {
+              currentProps = props;
+              selectedIndex = 0;
+              mount();
+              redraw();
+            },
+
+            onUpdate(props) {
+              currentProps = props;
+              selectedIndex = 0;
+              if (!el) mount();
+              redraw();
+            },
+
+            onKeyDown({ event }: SuggestionKeyDownProps): boolean {
+              if (!currentProps?.items.length) return false;
+
+              if (event.key === 'ArrowDown') {
+                selectedIndex = (selectedIndex + 1) % currentProps.items.length;
+                redraw();
                 return true;
               }
-            }
-
-            if (event.key === 'Escape') {
-              destroyDropdown(dropdownState);
-              return true;
-            }
-
-            return false;
-          },
-          decorations: () => null,
-        },
-        view: (_view: EditorView) => {
-          return {
-            update: (updatedView: EditorView) => {
-              const { doc, selection } = updatedView.state;
-              const { from } = selection;
-
-              // Read text before cursor in current text block
-              const $pos = doc.resolve(from);
-              const lineStart = $pos.start();
-              const textInNode = doc.textBetween(lineStart, from);
-
-              // Find last [[ that hasn't been closed
-              const bracketIdx = textInNode.lastIndexOf('[[');
-              if (bracketIdx === -1) {
-                destroyDropdown(dropdownState);
-                return;
+              if (event.key === 'ArrowUp') {
+                selectedIndex = (selectedIndex - 1 + currentProps.items.length) % currentProps.items.length;
+                redraw();
+                return true;
               }
-
-              // Extract query between [[ and cursor
-              const query = textInNode.substring(bracketIdx + 2);
-
-              // If query contains ]], close dropdown
-              if (query.includes(']]')) {
-                destroyDropdown(dropdownState);
-                return;
+              if (event.key === 'Enter' || event.key === 'Tab') {
+                const selected = currentProps.items[selectedIndex];
+                if (selected) {
+                  currentProps.command(selected);
+                  return true;
+                }
               }
-
-              // Update dropdown state
-              dropdownState.query = query;
-              dropdownState.from = lineStart + bracketIdx;
-              dropdownState.selectedIndex = 0;
-              dropdownState.items = filterNotes(query);
-
-              if (dropdownState.items.length === 0) {
-                destroyDropdown(dropdownState);
-                return;
+              if (event.key === 'Escape') {
+                unmount();
+                return true;
               }
+              return false;
+            },
 
-              // Create/update dropdown UI
-              createDropdownUI(dropdownState);
-              if (dropdownState.el) {
-                positionDropdown(dropdownState.el, dropdownState.from);
-              }
+            onExit() {
+              unmount();
             },
           };
         },
