@@ -28,7 +28,7 @@ module.exports = [
         }
     }),
     {
-        ignores: ['dist/**', 'coverage/**', 'node_modules/**', 'eslint.config.js']
+        ignores: ['dist/**', 'coverage/**', 'node_modules/**', 'eslint.config.js', 'src/__tests__/playwright/harness/**']
     },
     {
         files: ['scripts/**/*.js'],
