@@ -257,7 +257,7 @@ export class GraphDatabase {
     );
 
     if (!rows.length) return [];
-    return rows[0].values.map(row => ({
+    return rows[0].values.map((row: any[]) => ({
       sourcePath: row[0] as string,
       sourceTitle: row[1] as string,
       context: row[2] as string,
@@ -289,7 +289,7 @@ export class GraphDatabase {
       );
 
       if (!rows.length) return [];
-      return rows[0].values.map(row => ({
+      return rows[0].values.map((row: any[]) => ({
         sourcePath: row[0] as string,
         sourceTitle: row[1] as string,
         context: row[2] as string,
@@ -316,7 +316,7 @@ export class GraphDatabase {
       'SELECT tag, COUNT(*) as cnt FROM tags GROUP BY tag ORDER BY cnt DESC'
     );
     if (!rows.length) return [];
-    return rows[0].values.map(row => ({
+    return rows[0].values.map((row: any[]) => ({
       tag: row[0] as string,
       count: row[1] as number,
     }));
@@ -363,7 +363,7 @@ export class GraphDatabase {
       );
 
       if (!rows.length) return [];
-      return rows[0].values.map(row => ({
+      return rows[0].values.map((row: any[]) => ({
         path: row[0] as string,
         title: row[1] as string,
         snippet: row[2] as string,
@@ -405,7 +405,7 @@ export class GraphDatabase {
       [docId]
     );
     if (!rows.length) return [];
-    return rows[0].values.map(row => ({
+    return rows[0].values.map((row: any[]) => ({
       id: row[0] as number,
       docId: row[1] as number,
       headerPath: row[2] as string,
@@ -433,7 +433,7 @@ export class GraphDatabase {
   getAllChunkIds(): number[] {
     const rows = this.db!.exec('SELECT id FROM chunks ORDER BY id');
     if (!rows.length) return [];
-    return rows[0].values.map(row => row[0] as number);
+    return rows[0].values.map((row: any[]) => row[0] as number);
   }
 
   getChunkCount(): number {
@@ -450,7 +450,7 @@ export class GraphDatabase {
       [docId, docId]
     );
     if (!rows.length) return [];
-    return rows[0].values.map(row => row[0] as number);
+    return rows[0].values.map((row: any[]) => row[0] as number);
   }
 
   getDocumentById(docId: number): GraphDocument | null {

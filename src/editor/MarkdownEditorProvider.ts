@@ -308,7 +308,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
 
     // Handle messages from webview
     webviewPanel.webview.onDidReceiveMessage(
-      e => this.handleWebviewMessage(e, document, webviewPanel.webview),
+      e => void this.handleWebviewMessage(e, document, webviewPanel.webview),
       null,
       this.context.subscriptions
     );
@@ -372,7 +372,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
   /**
    * Handle messages from webview
    */
-  private handleWebviewMessage(
+  private async handleWebviewMessage(
     message: { type: string; [key: string]: unknown },
     document: vscode.TextDocument,
     webview: vscode.Webview
