@@ -152,6 +152,24 @@ export function updateFilenameDimensions(
 }
 
 /**
+ * Extract a plain-text excerpt from a markdown note for hover preview.
+ * Strips YAML frontmatter and images, returns the first 10 non-empty lines.
+ */
+function extractWikilinkPreviewExcerpt(markdown: string): string {
+  // Strip YAML frontmatter (---...--- block at top)
+  let content = markdown.replace(/^---[\s\S]*?---\s*\n?/, '');
+  // Strip markdown image syntax
+  content = content.replace(/!\[[^\]]*\]\([^)]*\)/g, '');
+  // Collect first 10 non-empty lines
+  const lines = content
+    .split('\n')
+    .map(l => l.trimEnd())
+    .filter(l => l.trim().length > 0)
+    .slice(0, 10);
+  return lines.join('\n');
+}
+
+/**
  * Custom Text Editor Provider for Markdown files
  * Provides WYSIWYG editing using TipTap in a webview
  */
@@ -577,6 +595,24 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
           return;
         }
         await vscode.commands.executeCommand('vscode.openWith', uri, 'gptAiMarkdownEditor');
+        break;
+      }
+
+      case 'getWikilinkPreview': {
+        const identifier = message.identifier as string;
+        const uri = foamIntegration.resolveWikilinkUri(identifier);
+        if (!uri) {
+          void webview.postMessage({ type: 'wikilinkPreview', identifier, excerpt: null, broken: true });
+          break;
+        }
+        try {
+          const bytes = await vscode.workspace.fs.readFile(uri);
+          const raw = Buffer.from(bytes).toString('utf8');
+          const excerpt = extractWikilinkPreviewExcerpt(raw);
+          void webview.postMessage({ type: 'wikilinkPreview', identifier, excerpt, broken: false });
+        } catch {
+          void webview.postMessage({ type: 'wikilinkPreview', identifier, excerpt: null, broken: true });
+        }
         break;
       }
     }

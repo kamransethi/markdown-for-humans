@@ -35,8 +35,9 @@ interface DropdownState {
 }
 
 function filterNotes(query: string): WikilinkNote[] {
-  if (!query.trim()) return [];
-  const lowerQuery = query.toLowerCase();
+  const lowerQuery = query.toLowerCase().trim();
+  // Show all notes (up to 15) when no query yet — this is the initial [[  state
+  if (!lowerQuery) return noteCache.slice(0, 15);
   return noteCache
     .filter(
       note =>
@@ -57,10 +58,24 @@ function createDropdownUI(state: DropdownState): void {
   state.el.innerHTML = '';
 
   if (state.items.length === 0) {
-    const empty = document.createElement('div');
-    empty.className = 'wikilink-suggestion__empty';
-    empty.textContent = 'No notes found';
-    state.el.appendChild(empty);
+    if (state.query.trim()) {
+      // Offer to create a new note with this name
+      const createItem = document.createElement('div');
+      createItem.className = 'wikilink-suggestion__item wikilink-suggestion__create';
+      createItem.textContent = `Create: [[${state.query}]]`;
+      createItem.addEventListener('click', () => {
+        const event = new CustomEvent('wikilink:select', {
+          detail: { note: { identifier: state.query, title: state.query, fsPath: '', aliases: [], sections: [] }, from: state.from },
+        });
+        document.dispatchEvent(event);
+      });
+      state.el.appendChild(createItem);
+    } else {
+      const empty = document.createElement('div');
+      empty.className = 'wikilink-suggestion__empty';
+      empty.textContent = 'No notes found';
+      state.el.appendChild(empty);
+    }
     return;
   }
 
@@ -181,13 +196,13 @@ export const WikilinkSuggestion = Extension.create({
         view: (_view: EditorView) => {
           return {
             update: (updatedView: EditorView) => {
-              const { state, selection } = updatedView.state;
+              const { doc, selection } = updatedView.state;
               const { from } = selection;
 
               // Read text before cursor in current text block
-              const $pos = state.doc.resolve(from);
+              const $pos = doc.resolve(from);
               const lineStart = $pos.start();
-              const textInNode = state.doc.textBetween(lineStart, from);
+              const textInNode = doc.textBetween(lineStart, from);
 
               // Find last [[ that hasn't been closed
               const bracketIdx = textInNode.lastIndexOf('[[');

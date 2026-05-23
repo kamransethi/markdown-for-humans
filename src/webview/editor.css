@@ -1432,6 +1432,56 @@ body[data-theme="dark"] .github-alert {
   font-style: italic;
 }
 
+.wikilink-suggestion__create {
+  color: var(--md-link-fg);
+  font-style: italic;
+}
+
+/* Wikilink hover preview tooltip */
+.wikilink-preview-tooltip {
+  position: fixed;
+  z-index: 10000;
+  background: var(--md-dropdown-bg, #fff);
+  border: 1px solid var(--md-dropdown-border, #ddd);
+  border-radius: 6px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.15);
+  max-width: 420px;
+  min-width: 200px;
+  padding: 10px 14px;
+  font-size: 13px;
+  pointer-events: none;
+}
+
+.wikilink-preview-tooltip__title {
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: var(--md-link-fg);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wikilink-preview-tooltip__body {
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0;
+  opacity: 0.85;
+  max-height: 180px;
+  overflow: hidden;
+}
+
+.wikilink-preview-tooltip--broken {
+  border-color: rgba(234, 67, 53, 0.4);
+}
+
+.wikilink-preview-tooltip__broken {
+  color: #ea4335;
+  font-style: italic;
+}
+
 /* ============================================
      Images
      ============================================ */

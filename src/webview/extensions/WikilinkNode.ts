@@ -76,6 +76,19 @@ export const WikilinkNode = Node.create({
     ];
   },
 
+  markdownTokenName: 'wikilink',
+
+  parseMarkdown(token) {
+    const identifier = ((token as unknown as Record<string, string>).identifier ?? '').trim();
+    if (!identifier) return [];
+    return this.type.create({ identifier, broken: false });
+  },
+
+  renderMarkdown(node) {
+    const identifier = (node.attrs?.identifier as string) ?? '';
+    return `[[${identifier}]]`;
+  },
+
   addInputRules() {
     return [
       {
@@ -125,6 +138,31 @@ export const WikilinkNode = Node.create({
         if (api) {
           api.postMessage({ type: 'openWikilink', identifier });
         }
+      });
+
+      let hoverTimer: ReturnType<typeof setTimeout> | null = null;
+
+      dom.addEventListener('mouseenter', () => {
+        const rect = dom.getBoundingClientRect();
+        // Stash position so tooltip can be placed even after async round-trip
+        (window as unknown as Record<string, unknown>).__wikilinkHoverRect = rect;
+        (window as unknown as Record<string, unknown>).__wikilinkHoverId = identifier;
+        hoverTimer = setTimeout(() => {
+          const api = (window as unknown as { vscode?: { postMessage: (msg: unknown) => void } })
+            .vscode;
+          if (api) {
+            api.postMessage({ type: 'getWikilinkPreview', identifier });
+          }
+        }, 350);
+      });
+
+      dom.addEventListener('mouseleave', () => {
+        if (hoverTimer) {
+          clearTimeout(hoverTimer);
+          hoverTimer = null;
+        }
+        (window as unknown as Record<string, unknown>).__wikilinkHoverId = null;
+        document.getElementById('wikilink-preview-tooltip')?.remove();
       });
 
       return { dom };

@@ -1062,7 +1062,30 @@ function initializeEditor(initialContent: string) {
         // The Marked class instance satisfies all properties actually used by MarkdownManager
         // (setOptions, use, lexer, Lexer) but TypeScript doesn't see it as typeof marked
         // because marked is typed as a function+namespace, not a class instance.
-        marked: new Marked() as unknown as typeof markedInstance,
+        marked: (() => {
+          const m = new Marked();
+          // Register a custom inline extension so [[identifier]] text is tokenized
+          // as a 'wikilink' token type that WikilinkNode.parseMarkdown can claim.
+          m.use({
+            extensions: [
+              {
+                name: 'wikilink',
+                level: 'inline' as const,
+                start(src: string) {
+                  return src.indexOf('[[');
+                },
+                tokenizer(src: string) {
+                  const match = /^\[\[([^\]|\n]+)\]\]/.exec(src);
+                  if (match) {
+                    return { type: 'wikilink', raw: match[0], identifier: match[1].trim() };
+                  }
+                  return undefined;
+                },
+              },
+            ],
+          });
+          return m;
+        })() as unknown as typeof markedInstance,
         markedOptions: {
           gfm: true, // GitHub Flavored Markdown for tables, task lists
           breaks: true, // Preserve single newlines as <br>
@@ -1220,10 +1243,8 @@ function initializeEditor(initialContent: string) {
         },
         // Route file/image drops and pastes through the image drop handler (FR-004).
         // Returns true when the handler owns the event (prevents ProseMirror default).
-        handleDrop: (view, event, slice, moved) =>
-          imageDragDropHandler(view, event, slice, moved),
-        handlePaste: (view, event, slice) =>
-          imagePasteHandler(view, event, slice),
+        handleDrop: (view, event, slice, moved) => imageDragDropHandler(view, event, slice, moved),
+        handlePaste: (view, event, slice) => imagePasteHandler(view, event, slice),
       },
       onUpdate: ({ editor: _editor }) => {
         if (isUpdating) return;
@@ -1834,6 +1855,37 @@ window.addEventListener('message', (event: MessageEvent) => {
           setWikilinkSuggestionNotes(notes);
           setWikilinkNoteIndex(notes.map(n => n.identifier));
         }
+        break;
+      }
+      case 'wikilinkPreview': {
+        const { identifier, excerpt, broken } = message as unknown as {
+          identifier: string;
+          excerpt: string | null;
+          broken: boolean;
+        };
+        // Only show if the user is still hovering the same link
+        const hoverId = (window as unknown as Record<string, unknown>).__wikilinkHoverId;
+        if (hoverId !== identifier) break;
+        // Remove stale tooltip
+        document.getElementById('wikilink-preview-tooltip')?.remove();
+        const rect = (window as unknown as Record<string, unknown>).__wikilinkHoverRect as DOMRect | undefined;
+        if (!rect) break;
+        const tooltip = document.createElement('div');
+        tooltip.id = 'wikilink-preview-tooltip';
+        tooltip.className = broken ? 'wikilink-preview-tooltip wikilink-preview-tooltip--broken' : 'wikilink-preview-tooltip';
+        if (broken || !excerpt) {
+          tooltip.innerHTML = `<span class="wikilink-preview-tooltip__broken">Note not found: [[${identifier}]]</span>`;
+        } else {
+          // Escape HTML entities for safe text rendering
+          const safe = excerpt
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+          tooltip.innerHTML = `<div class="wikilink-preview-tooltip__title">${identifier}</div><pre class="wikilink-preview-tooltip__body">${safe}</pre>`;
+        }
+        tooltip.style.left = `${rect.left}px`;
+        tooltip.style.top = `${rect.bottom + 6}px`;
+        document.body.appendChild(tooltip);
         break;
       }
       default:
