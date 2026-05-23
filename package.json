@@ -129,6 +129,12 @@
         "command": "gptAiMarkdownEditor.knowledgeGraph.stats",
         "title": "Knowledge Graph: Show Stats",
         "category": "Flux Flow"
+      },
+      {
+        "command": "gptAiMarkdownEditor.showInGraph",
+        "title": "Show Note in Graph",
+        "category": "Flux Flow Markdown Editor",
+        "icon": "$(type-hierarchy)"
       }
     ],
     "views": {

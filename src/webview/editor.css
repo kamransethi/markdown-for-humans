@@ -1340,6 +1340,99 @@ body[data-theme="dark"] .github-alert {
 }
 
 /* ============================================
+     Wikilinks
+     ============================================ */
+
+.wikilink {
+  display: inline;
+  border-radius: 3px;
+  padding: 0 2px;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.wikilink--valid {
+  color: var(--md-link-fg);
+  text-decoration: underline;
+  text-decoration-style: solid;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.wikilink--valid:hover {
+  color: var(--md-link-active-fg);
+  background: rgba(26, 115, 232, 0.08);
+}
+
+.wikilink--broken {
+  color: #ea4335;
+  text-decoration: underline;
+  text-decoration-style: dashed;
+  text-underline-offset: 2px;
+  cursor: default;
+  opacity: 0.8;
+}
+
+.wikilink--broken:hover {
+  background: rgba(234, 67, 53, 0.08);
+}
+
+/* Wikilink autocomplete dropdown */
+.wikilink-suggestion {
+  position: fixed;
+  z-index: 9999;
+  background: var(--md-dropdown-bg);
+  border: 1px solid var(--md-dropdown-border);
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  min-width: 240px;
+  max-width: 400px;
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 4px 0;
+  font-family: inherit;
+  font-size: 13px;
+}
+
+.wikilink-suggestion__item {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  padding: 6px 12px;
+  cursor: pointer;
+  color: var(--md-dropdown-fg);
+}
+
+.wikilink-suggestion__item:hover,
+.wikilink-suggestion__item.selected {
+  background: var(--md-hover-bg);
+}
+
+.wikilink-suggestion__title {
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wikilink-suggestion__id {
+  font-size: 11px;
+  opacity: 0.6;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.wikilink-suggestion__empty {
+  padding: 8px 12px;
+  color: var(--md-muted);
+  font-style: italic;
+}
+
+/* ============================================
      Images
      ============================================ */
 

@@ -14,6 +14,7 @@ import { getProviderAvailabilityCached } from './features/llm/providerAvailabili
 import { handleProviderError } from './features/llm/providerErrorMessages';
 import { openSettingsPanel } from './editor/SettingsPanel';
 import * as FluxFlowGraph from './features/fluxflow/index';
+import { foamIntegration } from './services/foam-integration';
 
 /**
  * Constants for default markdown viewer prompt feature
@@ -115,6 +116,21 @@ export function activate(context: vscode.ExtensionContext) {
   // Initialize Word Count feature
   const wordCount = new WordCountFeature();
   wordCount.activate(context);
+
+  // Connect to Foam extension for wikilinks support
+  void foamIntegration.connect();
+
+  // Register wikilinks show-in-graph command
+  context.subscriptions.push(
+    vscode.commands.registerCommand('gptAiMarkdownEditor.showInGraph', async () => {
+      const uri = getActiveDocumentUri();
+      if (!uri) {
+        vscode.window.showInformationMessage('Cannot determine current file.');
+        return;
+      }
+      await foamIntegration.showInGraph(uri);
+    })
+  );
 
   // Register commands
   context.subscriptions.push(

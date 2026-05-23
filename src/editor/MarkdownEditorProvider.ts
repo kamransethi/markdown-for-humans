@@ -30,6 +30,7 @@ import { DocumentSync } from './handlers/documentSync';
 import { getImageBasePath } from './utils/pathUtils';
 import { openSettingsPanel } from './SettingsPanel';
 import { getGraphCallbacks } from '../features/fluxflow/index';
+import { foamIntegration } from '../services/foam-integration';
 
 /**
  * Parse an image filename to extract source prefix
@@ -465,6 +466,12 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
           type: MessageType.SETTINGS_UPDATE,
           ...settings,
         });
+
+        // Push Foam note index if available (for wikilinks)
+        const notes = foamIntegration.getNoteList();
+        if (notes.length > 0) {
+          webview.postMessage({ type: 'noteIndex', notes });
+        }
         break;
       }
       case MessageType.OUTLINE_UPDATED: {
@@ -561,6 +568,17 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
           document
         );
         break;
+
+      case 'openWikilink': {
+        const identifier = message.identifier as string;
+        const uri = foamIntegration.resolveWikilinkUri(identifier);
+        if (!uri) {
+          vscode.window.showInformationMessage(`Note "${identifier}" not found`);
+          return;
+        }
+        await vscode.commands.executeCommand('vscode.openWith', uri, 'gptAiMarkdownEditor');
+        break;
+      }
     }
   }
 

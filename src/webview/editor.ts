@@ -26,6 +26,9 @@ import DragHandle from '@tiptap/extension-drag-handle';
 import Gapcursor from '@tiptap/extension-gapcursor';
 import { marked as markedInstance, Marked } from 'marked';
 import { CustomImage } from './extensions/customImage';
+import { WikilinkNode, setWikilinkNoteIndex } from './extensions/WikilinkNode';
+import { WikilinkSuggestion, setWikilinkSuggestionNotes } from './extensions/WikilinkSuggestion';
+import type { WikilinkNote } from '../services/foam-integration';
 import { CodeBlockWithUi } from './extensions/codeBlockShikiWithUi';
 import { common, createLowlight } from 'lowlight';
 import { Mermaid } from './extensions/mermaid';
@@ -1199,6 +1202,8 @@ function initializeEditor(initialContent: string) {
       AiExplain,
       DraggableBlocks, // Custom extension for block drag handles and highlighting
       Gapcursor,
+      WikilinkNode,
+      WikilinkSuggestion,
       // Front matter support with collapsible details panel
     ];
 
@@ -1823,6 +1828,14 @@ window.addEventListener('message', (event: MessageEvent) => {
         // Display front matter validation error dialog
         devLog('[DK-AI] Front matter error:', message.error);
         break;
+      case 'noteIndex': {
+        const notes = (message as unknown as { type: string; notes: WikilinkNote[] }).notes;
+        if (Array.isArray(notes)) {
+          setWikilinkSuggestionNotes(notes);
+          setWikilinkNoteIndex(notes.map(n => n.identifier));
+        }
+        break;
+      }
       default:
         console.warn('[DK-AI] Unknown message type:', message.type);
     }
