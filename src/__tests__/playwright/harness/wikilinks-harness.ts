@@ -130,26 +130,6 @@ function handleWikilinkPreview(
 }
 
 // ---------------------------------------------------------------------------
-// Custom Marked instance with wikilink inline tokenizer
-// ---------------------------------------------------------------------------
-
-const customMarked = new Marked();
-customMarked.use({
-  extensions: [
-    {
-      name: 'wikilink',
-      level: 'inline' as const,
-      start(src: string) { return src.indexOf('[['); },
-      tokenizer(src: string) {
-        const match = /^\[\[([^\]|\n]+)\]\]/.exec(src);
-        if (match) return { type: 'wikilink', raw: match[0], identifier: match[1].trim() };
-        return undefined;
-      },
-    },
-  ],
-});
-
-// ---------------------------------------------------------------------------
 // Default note index
 // ---------------------------------------------------------------------------
 
@@ -188,7 +168,6 @@ const editor = new Editor({
     }),
     Paragraph,
     Markdown.configure({
-      marked: customMarked as unknown as typeof markedInstance,
       markedOptions: { gfm: true, breaks: true },
     }),
     WikilinkNode,

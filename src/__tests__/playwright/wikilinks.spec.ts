@@ -57,7 +57,6 @@ async function clearMessages(page: Page): Promise<void> {
 // ---------------------------------------------------------------------------
 
 test.describe('Wikilink Visual & Integration Suite', () => {
-
   test.beforeEach(async ({ page }) => {
     await page.goto(WIKILINKS_PAGE);
     await waitForEditor(page);
@@ -89,7 +88,9 @@ test.describe('Wikilink Visual & Integration Suite', () => {
   // -------------------------------------------------------------------------
   // TC-VIS-002: Broken link renders red dashed
   // -------------------------------------------------------------------------
-  test('TC-VIS-002: broken link has .wikilink--broken class and red dashed underline', async ({ page }) => {
+  test('TC-VIS-002: broken link has .wikilink--broken class and red dashed underline', async ({
+    page,
+  }) => {
     await setMarkdown(page, 'Reference to [[missing-note]] which does not exist.');
 
     const link = page.locator('[data-wikilink][data-wikilink-id="missing-note"]');
@@ -101,9 +102,7 @@ test.describe('Wikilink Visual & Integration Suite', () => {
     const color = await link.evaluate(el => getComputedStyle(el).color);
     expect(color).toBe('rgb(234, 67, 53)');
 
-    const decorStyle = await link.evaluate(
-      el => getComputedStyle(el).textDecorationStyle
-    );
+    const decorStyle = await link.evaluate(el => getComputedStyle(el).textDecorationStyle);
     expect(decorStyle).toBe('dashed');
 
     await expect(link).toHaveScreenshot('tc-vis-002-broken-link-red.png');
@@ -113,10 +112,7 @@ test.describe('Wikilink Visual & Integration Suite', () => {
   // TC-VIS-001 + 002 combined: both states visible together
   // -------------------------------------------------------------------------
   test('TC-VIS-001+002: valid and broken links coexist in same paragraph', async ({ page }) => {
-    await setMarkdown(
-      page,
-      'Valid: [[active-note]] and broken: [[missing-note]] side by side.'
-    );
+    await setMarkdown(page, 'Valid: [[active-note]] and broken: [[missing-note]] side by side.');
 
     const valid = page.locator('[data-wikilink-id="active-note"]');
     const broken = page.locator('[data-wikilink-id="missing-note"]');
@@ -250,7 +246,9 @@ test.describe('Wikilink Visual & Integration Suite', () => {
   // -------------------------------------------------------------------------
   // TC-VIS-007: Clicking a valid link dispatches openWikilink message
   // -------------------------------------------------------------------------
-  test('TC-VIS-007: clicking a valid link sends openWikilink message with correct identifier', async ({ page }) => {
+  test('TC-VIS-007: clicking a valid link sends openWikilink message with correct identifier', async ({
+    page,
+  }) => {
     await setMarkdown(page, 'Click [[active-note]] to navigate.');
 
     const link = page.locator('[data-wikilink-id="active-note"]');
@@ -262,7 +260,7 @@ test.describe('Wikilink Visual & Integration Suite', () => {
     // Give the click handler time to fire
     await page.waitForTimeout(100);
 
-    const msg = await getLastMessage(page) as { type: string; identifier: string } | null;
+    const msg = (await getLastMessage(page)) as { type: string; identifier: string } | null;
     expect(msg).not.toBeNull();
     expect(msg!.type).toBe('openWikilink');
     expect(msg!.identifier).toBe('active-note');
@@ -285,7 +283,7 @@ test.describe('Wikilink Visual & Integration Suite', () => {
     // WikilinkNode sends openWikilink for any click — broken links still dispatch
     // the message so the host can decide (e.g. offer to create). Just verify
     // the message type is openWikilink and the identifier is correct.
-    const msg = await getLastMessage(page) as { type: string; identifier: string } | null;
+    const msg = (await getLastMessage(page)) as { type: string; identifier: string } | null;
     if (msg) {
       expect(msg.type).toBe('openWikilink');
       expect(msg.identifier).toBe('missing-note');
@@ -329,7 +327,9 @@ test.describe('Wikilink Visual & Integration Suite', () => {
   // -------------------------------------------------------------------------
   // TC-VIS-LOAD: Loading state resolves after index update
   // -------------------------------------------------------------------------
-  test('TC-VIS-LOAD: links start as loading when index is empty, resolve after index set', async ({ page }) => {
+  test('TC-VIS-LOAD: links start as loading when index is empty, resolve after index set', async ({
+    page,
+  }) => {
     // Clear the note index so wikilinks start in loading state
     await page.evaluate(() => {
       (window as any).editorAPI.setNoteIndex([], {});
@@ -344,10 +344,7 @@ test.describe('Wikilink Visual & Integration Suite', () => {
 
     // Now restore the index — the link should transition to valid
     await page.evaluate(() => {
-      (window as any).editorAPI.setNoteIndex(
-        ['active-note'],
-        { 'active-note': 'Active Note' }
-      );
+      (window as any).editorAPI.setNoteIndex(['active-note'], { 'active-note': 'Active Note' });
     });
     await page.waitForTimeout(100);
 
@@ -356,5 +353,4 @@ test.describe('Wikilink Visual & Integration Suite', () => {
 
     await expect(link).toHaveScreenshot('tc-vis-load-resolved.png');
   });
-
 });
