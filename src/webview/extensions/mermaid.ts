@@ -1,53 +1,105 @@
-/**
- * Copyright (c) 2025-2026 Concret.io
+﻿/**
+ * Copyright (c) 2025-2026 DK-AI
  *
  * Licensed under the MIT License. See LICENSE file in the project root for details.
  */
 
 import { Node, mergeAttributes } from '@tiptap/core';
+import { MessageType } from '../../shared/messageTypes';
 import mermaid from 'mermaid';
 
 /**
- * Detect if VS Code is in dark mode by checking CSS variables
+ * Detect if editor is in dark mode by checking data-theme attribute
  */
 function isDarkMode(): boolean {
-  const bg = getComputedStyle(document.documentElement)
-    .getPropertyValue('--vscode-editor-background')
-    .trim();
-  if (!bg) return false;
+  return document.body.getAttribute('data-theme') === 'dark';
+}
 
-  // Parse the color and check luminance
-  const hex = bg.replace('#', '');
-  if (hex.length >= 6) {
-    const r = parseInt(hex.substring(0, 2), 16);
-    const g = parseInt(hex.substring(2, 4), 16);
-    const b = parseInt(hex.substring(4, 6), 16);
-    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-    return luminance < 0.5;
-  }
-  return false;
+/**
+ * Read a CSS custom property, returning a fallback when the variable is
+ * not yet resolved (e.g. during early module initialisation before the
+ * stylesheet has loaded).  Mermaid's color parser throws on empty strings.
+ */
+function cssVar(styles: CSSStyleDeclaration, name: string, fallback: string): string {
+  const value = styles.getPropertyValue(name).trim();
+  return value || fallback;
 }
 
 /**
  * Initialize mermaid with theme based on VS Code theme
  */
 function initializeMermaid() {
-  const theme = isDarkMode() ? 'dark' : 'default';
+  const styles = getComputedStyle(document.documentElement);
+  const dark = isDarkMode();
+  const theme = dark ? 'dark' : 'default';
+
+  // Sensible defaults when CSS variables aren't available yet
+  const fb = dark
+    ? { bg: '#1e1e1e', fg: '#d4d4d4', subtle: '#2d2d2d', border: '#444', focus: '#569cd6' }
+    : { bg: '#ffffff', fg: '#1a1a1a', subtle: '#f7f7f7', border: '#e0e0e0', focus: '#1a73e8' };
+
   mermaid.initialize({
     startOnLoad: false,
     theme,
-    securityLevel: 'strict', // Safer for VS Code webview
+    securityLevel: 'strict',
     fontFamily: 'inherit',
+    suppressErrorRendering: true,
+    themeVariables: {
+      background: cssVar(styles, '--md-background', fb.bg),
+      primaryColor: cssVar(styles, '--md-subtle-bg', fb.subtle),
+      primaryBorderColor: cssVar(styles, '--md-focus', fb.focus),
+      primaryTextColor: cssVar(styles, '--md-foreground', fb.fg),
+      secondaryColor: cssVar(styles, '--md-subtle-bg', fb.subtle),
+      secondaryBorderColor: cssVar(styles, '--md-border', fb.border),
+      tertiaryColor: cssVar(styles, '--md-subtle-bg', fb.subtle),
+      tertiaryBorderColor: cssVar(styles, '--md-border', fb.border),
+      lineColor: cssVar(styles, '--md-foreground', fb.fg),
+      textColor: cssVar(styles, '--md-foreground', fb.fg),
+      edgeLabelBackground: cssVar(styles, '--md-background', fb.bg),
+      clusterBkg: cssVar(styles, '--md-subtle-bg', fb.subtle),
+      clusterBorder: cssVar(styles, '--md-border', fb.border),
+      actorBorder: cssVar(styles, '--md-focus', fb.focus),
+      actorTextColor: cssVar(styles, '--md-foreground', fb.fg),
+      actorBkg: cssVar(styles, '--md-subtle-bg', fb.subtle),
+      labelBoxBkg: cssVar(styles, '--md-subtle-bg', fb.subtle),
+      labelBoxBorderColor: cssVar(styles, '--md-border', fb.border),
+      labelTextColor: cssVar(styles, '--md-foreground', fb.fg),
+      signalColor: cssVar(styles, '--md-foreground', fb.fg),
+      signalTextColor: cssVar(styles, '--md-foreground', fb.fg),
+      noteBorderColor: cssVar(styles, '--md-focus', fb.focus),
+      noteBkgColor: cssVar(styles, '--md-subtle-bg', fb.subtle),
+      noteTextColor: cssVar(styles, '--md-foreground', fb.fg),
+    },
   });
 }
 
-// Initialize on load
 initializeMermaid();
+window.addEventListener('focus', initializeMermaid);
+
+/**
+ * Remove orphan mermaid elements injected into body during render errors.
+ */
+function cleanupOrphanMermaidElements(id: string) {
+  const orphan = document.getElementById(id);
+  if (orphan && !orphan.closest('.mermaid-split-wrapper')) orphan.remove();
+
+  const dOrphan = document.getElementById('d' + id);
+  if (dOrphan && !dOrphan.closest('.mermaid-split-wrapper')) dOrphan.remove();
+
+  document.querySelectorAll('body > svg[id^="mermaid-"]').forEach(el => {
+    if (!el.closest('.mermaid-split-wrapper')) el.remove();
+  });
+  document.querySelectorAll('body > div[id^="dmermaid-"]').forEach(el => {
+    if (!el.closest('.mermaid-split-wrapper')) el.remove();
+  });
+}
+
+// Global queue to prevent concurrent mermaid renders mutating the DOM
+let mermaidRenderQueue = Promise.resolve();
 
 export const Mermaid = Node.create({
   name: 'mermaid',
 
-  // Higher priority than CodeBlockLowlight (default 100) to parse mermaid blocks first
   priority: 200,
 
   group: 'block',
@@ -61,6 +113,12 @@ export const Mermaid = Node.create({
   defining: true,
 
   isolating: true,
+  selectable: true,
+  draggable: true,
+
+  onDestroy() {
+    window.removeEventListener('focus', initializeMermaid);
+  },
 
   addAttributes() {
     return {
@@ -76,21 +134,17 @@ export const Mermaid = Node.create({
 
   parseHTML() {
     return [
-      // Match our own rendered output
       {
         tag: 'pre[data-language="mermaid"]',
         preserveWhitespace: 'full',
       },
-      // Match markdown-generated code blocks: <pre><code class="language-mermaid">
       {
         tag: 'pre',
         preserveWhitespace: 'full',
         getAttrs: (element: HTMLElement) => {
           const code = element.querySelector('code');
           if (!code) return false;
-          // Check for language-mermaid class
           if (code.classList.contains('language-mermaid')) return {};
-          // Check data-language attribute
           if (code.getAttribute('data-language') === 'mermaid') return {};
           return false;
         },
@@ -110,7 +164,6 @@ export const Mermaid = Node.create({
 
   parseMarkdown: (token, helpers) => {
     const language = (token.lang || '').toLowerCase();
-    // Note: marked.js 15.x only sets codeBlockStyle for indented blocks, not fenced
     const isMermaidFence =
       token.type === 'code' &&
       token.codeBlockStyle !== 'indented' &&
@@ -123,13 +176,7 @@ export const Mermaid = Node.create({
     const text = token.text ?? '';
     const content = text ? [helpers.createTextNode(text)] : [];
 
-    return helpers.createNode(
-      'mermaid',
-      {
-        language: 'mermaid',
-      },
-      content
-    );
+    return helpers.createNode('mermaid', { language: 'mermaid' }, content);
   },
 
   renderMarkdown: (node, helpers) => {
@@ -142,142 +189,156 @@ export const Mermaid = Node.create({
   addNodeView() {
     return ({ node, getPos, editor }) => {
       const container = document.createElement('div');
-      container.classList.add('mermaid-wrapper');
+      container.classList.add('mermaid-split-wrapper');
 
-      const codeElement = document.createElement('pre');
-      codeElement.classList.add('mermaid-source');
-      codeElement.textContent = node.textContent;
+      // Compact header matching code block style
+      const codeHeader = document.createElement('div');
+      codeHeader.classList.add('mermaid-code-header');
 
-      const renderElement = document.createElement('div');
-      renderElement.classList.add('mermaid-render');
+      const codeTitle = document.createElement('div');
+      codeTitle.classList.add('mermaid-code-title');
+      codeTitle.textContent = 'Mermaid';
 
-      container.append(codeElement);
-      container.appendChild(renderElement);
+      const editButton = document.createElement('button');
+      editButton.type = 'button';
+      editButton.classList.add('mermaid-edit-button');
+      editButton.textContent = 'Edit';
 
-      // Render mermaid diagram
-      const renderDiagram = async () => {
-        const content = codeElement.textContent?.trim() || '';
+      codeHeader.appendChild(codeTitle);
+      codeHeader.appendChild(editButton);
+
+      const renderBlock = document.createElement('div');
+      renderBlock.classList.add('mermaid-render-block');
+
+      container.appendChild(codeHeader);
+      container.appendChild(renderBlock);
+
+      let currentContent = node.textContent;
+      let renderVersion = 0;
+      const debounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+      const renderDiagram = async (code: string) => {
+        const content = code.trim();
+        const thisVersion = ++renderVersion;
+
         if (!content) {
-          renderElement.innerHTML =
-            '<div class="mermaid-placeholder">Enter Mermaid diagram code</div>';
+          renderBlock.innerHTML =
+            '<div class="mermaid-placeholder">Empty Mermaid diagram. Type code to render.</div>';
           return;
         }
 
         try {
-          const theme = isDarkMode() ? 'dark' : 'default';
-          mermaid.initialize({
-            startOnLoad: false,
-            theme,
-            securityLevel: 'strict',
-            fontFamily: 'inherit',
-          });
-          // Clear previous content to prevent duplicates
-          renderElement.innerHTML = '';
+          await mermaid.parse(content);
+        } catch (parseError) {
+          if (thisVersion !== renderVersion) return;
+          const errorMsg =
+            parseError instanceof Error ? parseError.message : 'Invalid diagram syntax';
+          renderBlock.innerHTML = `<div class="mermaid-error">Diagram Error: ${errorMsg}</div>`;
+          return;
+        }
 
-          // Use timestamp to ensure truly unique IDs and prevent caching
-          const id = `mermaid-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
-          const { svg } = await mermaid.render(id, content);
-          renderElement.innerHTML = svg;
-          renderElement.classList.add('rendered');
-          codeElement.classList.add('hidden');
-        } catch (error) {
-          console.error('Mermaid rendering error:', error);
-          const errorMsg = error instanceof Error ? error.message : 'Invalid diagram syntax';
-          renderElement.textContent = '';
-          const errorDiv = document.createElement('div');
-          errorDiv.className = 'mermaid-error';
-          errorDiv.textContent = `Diagram Error: ${errorMsg}`;
-          renderElement.appendChild(errorDiv);
-          renderElement.classList.remove('rendered');
-          codeElement.classList.remove('hidden');
+        const id = `mermaid-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+
+        mermaidRenderQueue = mermaidRenderQueue
+          .then(async () => {
+            try {
+              if (thisVersion !== renderVersion) return;
+              renderBlock.innerHTML = '';
+              initializeMermaid();
+              const { svg, bindFunctions } = await mermaid.render(id, content);
+              if (thisVersion !== renderVersion) return;
+              renderBlock.innerHTML = svg;
+              if (bindFunctions) {
+                bindFunctions(renderBlock);
+              }
+            } catch (error) {
+              if (thisVersion !== renderVersion) return;
+              console.error('Mermaid rendering error:', error);
+              const errorMsg = error instanceof Error ? error.message : 'Invalid diagram syntax';
+              renderBlock.innerHTML = `<div class="mermaid-error">Diagram Error: ${errorMsg}</div>`;
+            } finally {
+              cleanupOrphanMermaidElements(id);
+            }
+          })
+          .catch(err => {
+            console.error('Mermaid queue error:', err);
+          });
+      };
+
+      // Open the same document in VS Code source view, scrolled to this mermaid block
+      const openSourceEditor = () => {
+        const vscodeApi = (window as any).vscode;
+        if (vscodeApi) {
+          vscodeApi.postMessage({
+            type: MessageType.EDIT_MERMAID_SOURCE,
+            code: currentContent,
+          });
         }
       };
 
-      renderDiagram();
+      // Header events
+      codeHeader.addEventListener('click', e => e.stopPropagation());
+      codeHeader.addEventListener('mousedown', e => e.stopPropagation());
+      editButton.addEventListener('click', e => {
+        e.preventDefault();
+        e.stopPropagation();
+        openSourceEditor();
+      });
 
-      // Create tooltip element
+      // Tooltip for "Double-click to edit" hint
       const tooltip = document.createElement('div');
       tooltip.classList.add('mermaid-tooltip');
-      tooltip.setAttribute('role', 'tooltip');
-      tooltip.setAttribute('id', `mermaid-tooltip-${Math.random().toString(36).slice(2, 11)}`);
       tooltip.textContent = 'Double-click to edit';
       tooltip.style.display = 'none';
       container.appendChild(tooltip);
 
-      // State management
-      let isHighlighted = false;
-
-      // Helper: Remove highlight state
-      const removeHighlight = () => {
-        container.classList.remove('highlighted');
-        tooltip.style.display = 'none';
-        isHighlighted = false;
-      };
-
-      // Helper: Show modal editor
-      const showEditor = async () => {
-        const { showMermaidEditor } = await import('../features/mermaidEditor');
-        // Use codeElement.textContent to get the current (possibly edited) content
-        const result = await showMermaidEditor(codeElement.textContent || '');
-
-        if (result.wasSaved && getPos) {
-          // Update the TipTap node via transaction
-          const pos = getPos();
-          if (typeof pos !== 'number') return; // Type guard
-
-          const { tr } = editor.state;
-
-          // Create new mermaid node with updated text content
-          const newNode = node.type.create(node.attrs, editor.schema.text(result.code));
-
-          // Replace the old node with the new one
-          tr.replaceWith(pos, pos + node.nodeSize, newNode);
-
-          editor.view.dispatch(tr);
-
-          // Also update local DOM for immediate  visual feedback
-          codeElement.textContent = result.code;
-          renderDiagram();
-        }
-      };
-
-      // Single-click: Highlight + show tooltip (only in preview mode)
+      // Manual selection on click
       container.addEventListener('click', () => {
-        // Don't highlight if clicking inside diagram
-        if (!isHighlighted) {
-          container.classList.add('highlighted');
-          tooltip.style.display = 'block';
-          container.setAttribute('aria-describedby', tooltip.id);
-          isHighlighted = true;
+        const pos = getPos();
+        if (typeof pos === 'number') {
+          editor.commands.setNodeSelection(pos);
         }
       });
 
-      // Double-click: Open modal editor
-      container.addEventListener('dblclick', () => {
-        removeHighlight();
-        showEditor();
+      // Open source editor on double-click
+      container.addEventListener('dblclick', e => {
+        if ((e.target as HTMLElement | null)?.closest('.mermaid-code-header')) return;
+        openSourceEditor();
       });
 
-      // Click outside: Remove highlight
-      // Store reference for cleanup on destroy
-      const handleDocumentClick = (e: MouseEvent) => {
-        if (!container.contains(e.target as HTMLElement) && isHighlighted) {
-          removeHighlight();
-        }
+      const themeChangeListener = () => {
+        renderDiagram(currentContent);
       };
-      document.addEventListener('click', handleDocumentClick);
+      window.addEventListener('gptAiThemeChanged', themeChangeListener);
+
+      renderDiagram(currentContent);
 
       return {
         dom: container,
         update: updatedNode => {
           if (updatedNode.type.name !== 'mermaid') return false;
-          codeElement.textContent = updatedNode.textContent;
-          renderDiagram();
+          if (currentContent !== updatedNode.textContent) {
+            currentContent = updatedNode.textContent;
+            renderDiagram(currentContent);
+          }
           return true;
         },
+        selectNode: () => {
+          container.classList.add('highlighted');
+          tooltip.style.display = 'block';
+        },
+        deselectNode: () => {
+          container.classList.remove('highlighted');
+          tooltip.style.display = 'none';
+        },
+        stopEvent: event => {
+          const target = event.target as HTMLElement | null;
+          return Boolean(target?.closest('.mermaid-code-header'));
+        },
         destroy: () => {
-          // Clean up document listener to prevent memory leaks
-          document.removeEventListener('click', handleDocumentClick);
+          renderVersion++;
+          if (debounceTimer) clearTimeout(debounceTimer);
+          window.removeEventListener('gptAiThemeChanged', themeChangeListener);
         },
       };
     };

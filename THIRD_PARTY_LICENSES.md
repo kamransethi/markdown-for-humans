@@ -1,6 +1,6 @@
-# Third-Party Licenses
+﻿# Third-Party Licenses
 
-This document lists the third-party open source software components used in Markdown for Humans and their respective licenses.
+This document lists the third-party open source software components used in Flux Flow Markdown Editor and their respective licenses.
 
 ## Dependencies
 
@@ -16,11 +16,17 @@ This document lists the third-party open source software components used in Mark
 - **Repository:** https://github.com/ueberdosis/tiptap
 - **License URL:** https://github.com/ueberdosis/tiptap/blob/main/LICENSE
 
-### @tiptap/extension-image, @tiptap/extension-link, @tiptap/extension-list, @tiptap/extension-table
+### @tiptap/extension-bubble-menu, @tiptap/extension-character-count, @tiptap/extension-color, @tiptap/extension-drag-handle, @tiptap/extension-highlight, @tiptap/extension-image, @tiptap/extension-link, @tiptap/extension-list, @tiptap/extension-placeholder, @tiptap/extension-table, @tiptap/extension-table-of-contents, @tiptap/extension-text-style, @tiptap/extension-typography, @tiptap/extension-underline
 - **License:** MIT
 - **Copyright:** © 2024 Tiptap Inc.
 - **Repository:** https://github.com/ueberdosis/tiptap
 - **License URL:** https://github.com/ueberdosis/tiptap/blob/main/LICENSE
+
+### @thednp/color-picker
+- **License:** MIT
+- **Copyright:** © 2023 thednp
+- **Repository:** https://github.com/thednp/color-picker
+- **License URL:** https://github.com/thednp/color-picker/blob/master/LICENSE
 
 ### cheerio
 - **License:** MIT

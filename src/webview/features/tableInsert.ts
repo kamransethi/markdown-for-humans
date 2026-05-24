@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2025-2026 Concret.io
+﻿/**
+ * Copyright (c) 2025-2026 DK-AI
  *
  * Licensed under the MIT License. See LICENSE file in the project root for details.
  */
@@ -10,13 +10,14 @@
  */
 
 import type { Editor } from '@tiptap/core';
+import { BaseOverlay } from '../overlays/BaseOverlay';
 
 /**
  * Table Insert Dialog state
  */
 let tableDialogElement: HTMLElement | null = null;
-let isVisible = false;
 let currentEditor: Editor | null = null;
+const tableBaseOverlay = new BaseOverlay();
 
 // Bounds for table dimensions
 const MIN_COLS = 1;
@@ -36,7 +37,7 @@ function focusEditor(editor: Editor | null) {
       maybeFocused.run();
     }
   } catch (error) {
-    console.warn('[MD4H] Failed to restore focus to editor after table dialog', error);
+    console.warn('[DK-AI] Failed to restore focus to editor after table dialog', error);
   }
 }
 
@@ -103,15 +104,13 @@ export function createTableInsertDialog(): HTMLElement {
     <div class="table-insert-actions">
       <button
         id="table-cancel-btn"
-        class="export-settings-select"
-        style="padding: 8px 24px; background: var(--vscode-button-secondaryBackground); color: var(--vscode-button-secondaryForeground); border: none; cursor: pointer; border-radius: 4px;"
+        class="table-insert-btn table-insert-btn-cancel"
       >
         Cancel
       </button>
       <button
         id="table-ok-btn"
-        class="export-settings-select"
-        style="padding: 8px 24px; background: var(--vscode-button-background); color: var(--vscode-button-foreground); border: none; cursor: pointer; border-radius: 4px;"
+        class="table-insert-btn table-insert-btn-submit"
       >
         OK
       </button>
@@ -159,12 +158,9 @@ export function createTableInsertDialog(): HTMLElement {
 
   cancelBtn.onclick = () => hideTableInsertDialog();
 
-  // Handle keyboard navigation
+  // Handle keyboard navigation (Escape is handled by BaseOverlay at document level)
   overlay.addEventListener('keydown', (e: KeyboardEvent) => {
-    if (e.key === 'Escape') {
-      e.preventDefault();
-      hideTableInsertDialog();
-    } else if (e.key === 'Enter' && (e.target === colsInput || e.target === rowsInput)) {
+    if (e.key === 'Enter' && (e.target === colsInput || e.target === rowsInput)) {
       e.preventDefault();
       okBtn.click();
     }
@@ -198,9 +194,8 @@ export function showTableInsertDialog(editor: Editor): void {
 
   if (!tableDialogElement) return;
 
-  // Show overlay
-  tableDialogElement.classList.add('visible');
-  isVisible = true;
+  // Show overlay via BaseOverlay (handles DOM attach, visible class, Escape, focus stack)
+  tableBaseOverlay.open(tableDialogElement);
 
   // Focus columns input
   requestAnimationFrame(() => {
@@ -217,13 +212,13 @@ export function showTableInsertDialog(editor: Editor): void {
  */
 export function hideTableInsertDialog(): void {
   const editorRef = currentEditor;
-
-  if (!tableDialogElement) return;
-
-  tableDialogElement.classList.remove('visible');
-  isVisible = false;
   currentEditor = null;
 
+  // BaseOverlay removes 'visible' class and pops from stack
+  tableBaseOverlay.close();
+
+  // Additionally restore editor focus (BaseOverlay restores DOM focus to trigger;
+  // we also call focusEditor to ensure ProseMirror selection is restored)
   if (editorRef) {
     focusEditor(editorRef);
   }
@@ -233,5 +228,5 @@ export function hideTableInsertDialog(): void {
  * Check if Table Insert dialog is visible
  */
 export function isTableInsertDialogVisible(): boolean {
-  return isVisible;
+  return tableBaseOverlay.isOpen;
 }

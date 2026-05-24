@@ -43,7 +43,15 @@ function buildItems(query: string): WikilinkNote[] {
   const matches = filterNotes(query);
   if (matches.length === 0 && query.trim()) {
     // Offer to create a new note with the typed query as identifier
-    return [{ identifier: query.trim(), title: `Create: [[${query.trim()}]]`, fsPath: '', aliases: [], sections: [] }];
+    return [
+      {
+        identifier: query.trim(),
+        title: `Create: [[${query.trim()}]]`,
+        fsPath: '',
+        aliases: [],
+        sections: [],
+      },
+    ];
   }
   return matches;
 }
@@ -104,9 +112,12 @@ function renderDropdown(
 }
 
 function positionDropdown(el: HTMLElement, decorationNode: Element | null): void {
-  const anchor = decorationNode ?? (window.getSelection()?.getRangeAt(0)?.getBoundingClientRect() as unknown as Element);
+  const anchor =
+    decorationNode ??
+    (window.getSelection()?.getRangeAt(0)?.getBoundingClientRect() as unknown as Element);
   if (!anchor) return;
-  const rect = anchor instanceof Element ? anchor.getBoundingClientRect() : (anchor as unknown as DOMRect);
+  const rect =
+    anchor instanceof Element ? anchor.getBoundingClientRect() : (anchor as unknown as DOMRect);
   el.style.left = `${rect.left}px`;
   el.style.top = `${rect.bottom + 4}px`;
 }
@@ -202,7 +213,8 @@ export const WikilinkSuggestion = Extension.create({
                 return true;
               }
               if (event.key === 'ArrowUp') {
-                selectedIndex = (selectedIndex - 1 + currentProps.items.length) % currentProps.items.length;
+                selectedIndex =
+                  (selectedIndex - 1 + currentProps.items.length) % currentProps.items.length;
                 redraw();
                 return true;
               }

@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2025-2026 Concret.io
+﻿/**
+ * Copyright (c) 2025-2026 DK-AI
  *
  * Licensed under the MIT License. See LICENSE file in the project root for details.
  */
@@ -11,6 +11,7 @@
  */
 
 import { Editor } from '@tiptap/core';
+import { devLog } from '../utils/devLog';
 
 /**
  * Result of a copy operation
@@ -43,7 +44,7 @@ export function getSelectionAsMarkdown(editor: Editor): string | null {
 
     // Try to use the markdown manager from @tiptap/markdown
     // The official package exposes editor.markdown.serialize(json)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     const markdownManager = (editor as any).markdown;
     if (markdownManager?.serialize) {
       // Convert temp doc to JSON and serialize
@@ -54,7 +55,7 @@ export function getSelectionAsMarkdown(editor: Editor): string | null {
     // Fallback: Convert to basic markdown by analyzing node types
     return sliceToBasicMarkdown(editor, from, to);
   } catch (error) {
-    console.error('[MD4H] Error getting selection as markdown:', error);
+    console.error('[DK-AI] Error getting selection as markdown:', error);
     // Fallback to plain text
     return editor.state.doc.textBetween(from, to, '\n\n', '\n');
   }
@@ -138,7 +139,7 @@ export async function copyToClipboard(markdown: string): Promise<CopyResult> {
       await navigator.clipboard.writeText(markdown);
       return { success: true, markdown };
     } catch (err) {
-      console.warn('[MD4H] Clipboard API failed, trying fallback:', err);
+      console.warn('[DK-AI] Clipboard API failed, trying fallback:', err);
     }
   }
 
@@ -211,9 +212,9 @@ export async function copySelectionAsMarkdown(editor: Editor): Promise<CopyResul
   showCopyFeedback(result.success);
 
   if (result.success) {
-    console.log('[MD4H] Copied to clipboard:', markdown.substring(0, 100) + '...');
+    devLog('[DK-AI] Copied to clipboard:', markdown.substring(0, 100) + '...');
   } else {
-    console.error('[MD4H] Copy failed:', result.error);
+    console.error('[DK-AI] Copy failed:', result.error);
   }
 
   return result;

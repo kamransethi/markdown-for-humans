@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2025-2026 Concret.io
+ * Copyright (c) 2025-2026 DK-AI
  *
  * Licensed under the MIT License. See LICENSE file in the project root for details.
  */
@@ -10,48 +10,28 @@
  * - HTML → Markdown: Uses turndown.js to convert rich HTML to markdown
  * - Markdown → HTML: Uses markdown-it to parse markdown for TipTap insertion
  *
- * This enables pasting from Word, Google Docs, Notion, web pages, AND raw markdown.
  */
 
 import TurndownService from 'turndown';
+import { gfm } from 'turndown-plugin-gfm';
 import MarkdownIt from 'markdown-it';
+// @ts-expect-error - markdown-it-mark does not have types available
+import markdownItMark from 'markdown-it-mark';
 
-// Create and configure turndown instance
+// Create and configure turndown instance with GFM support for tables, task lists, etc.
 const turndown = new TurndownService({
-  headingStyle: 'atx', // # style headings
-  codeBlockStyle: 'fenced', // ``` style code blocks
-  bulletListMarker: '-', // - for bullets
-  emDelimiter: '*', // *italic*
-  strongDelimiter: '**', // **bold**
+  headingStyle: 'atx',
+  codeBlockStyle: 'fenced',
+  bulletListMarker: '-',
+  emDelimiter: '*',
+  strongDelimiter: '**',
   hr: '---',
-});
+}).use(gfm);
 
-// Add rule for strikethrough (del, s, strike elements)
-turndown.addRule('strikethrough', {
-  filter: (node: HTMLElement) => {
-    const tagName = node.nodeName.toLowerCase();
-    return tagName === 'del' || tagName === 's' || tagName === 'strike';
-  },
-  replacement: content => `~~${content}~~`,
-});
-
-// Add rule for task lists (checkboxes) - must have actual checkbox input
-turndown.addRule('taskListItem', {
-  filter: (node: HTMLElement) => {
-    if (node.nodeName !== 'LI') return false;
-    // Must have checkbox input somewhere in the li
-    const checkbox = node.querySelector('input[type="checkbox"]');
-    if (!checkbox) return false;
-    // Verify it's actually a checkbox (not just any input)
-    return (checkbox as HTMLInputElement).type === 'checkbox';
-  },
-  replacement: (content: string, node: HTMLElement) => {
-    const checkbox = node.querySelector('input[type="checkbox"]') as HTMLInputElement;
-    const isChecked = checkbox?.checked ?? false;
-    // Remove the checkbox from content and trim
-    const cleanContent = content.replace(/^\s*\[[ x]\]\s*/i, '').trim();
-    return `- [${isChecked ? 'x' : ' '}] ${cleanContent}\n`;
-  },
+// Add rule for highlight (mark elements) - not in standard GFM
+turndown.addRule('highlight', {
+  filter: ['mark'],
+  replacement: content => `==${content}==`,
 });
 
 // Add rule for preserving code blocks better
@@ -68,7 +48,7 @@ turndown.addRule('fencedCodeBlock', {
 });
 
 // Keep certain elements as-is (don't convert)
-turndown.keep(['sup', 'sub']);
+turndown.keep(['sup', 'sub', 'u']);
 
 // Remove elements that shouldn't be in markdown
 turndown.remove(['script', 'style', 'noscript', 'iframe', 'object', 'embed']);
@@ -106,7 +86,7 @@ export function htmlToMarkdown(html: string): string {
         .trim()
     );
   } catch (error) {
-    console.error('[MD4H] Error converting HTML to markdown:', error);
+    console.error('[DK-AI] Error converting HTML to markdown:', error);
     // Return empty string on error - caller should fall back to plain text
     throw error;
   }
@@ -117,7 +97,7 @@ const md = new MarkdownIt({
   html: true,
   breaks: true, // Preserve single newlines as <br> for plain text blocks
   linkify: true,
-});
+}).use(markdownItMark);
 
 /**
  * Check if text looks like markdown (has syntax that needs parsing)
@@ -219,7 +199,7 @@ export function isRichHtml(html: string, plainText: string): boolean {
  * Check if clipboard data contains an image
  *
  * @param clipboardData - ClipboardEvent data
- * @returns true if image content is present
+ * @returns true if image content is present (even alongside text/html)
  */
 export function hasImageContent(clipboardData: DataTransfer | null): boolean {
   if (!clipboardData) return false;
@@ -230,6 +210,25 @@ export function hasImageContent(clipboardData: DataTransfer | null): boolean {
     }
   }
   return false;
+}
+
+/**
+ * Check if clipboard data contains ONLY image content with no text/html present.
+ * Used to distinguish a pure image copy (screenshot, file copy) from a webpage
+ * copy that includes both HTML text and inline image data.
+ *
+ * @param clipboardData - ClipboardEvent data
+ * @returns true only when at least one image/* item exists AND no text/html is present
+ */
+export function hasOnlyImageContent(clipboardData: DataTransfer | null): boolean {
+  if (!clipboardData) return false;
+  const items = clipboardData.items;
+  let hasImage = false;
+  for (let i = 0; i < items.length; i++) {
+    if (items[i].type === 'text/html') return false;
+    if (items[i].type.startsWith('image/')) hasImage = true;
+  }
+  return hasImage;
 }
 
 /**
@@ -302,14 +301,17 @@ export function processPasteContent(clipboardData: DataTransfer | null): {
   wasConverted: boolean;
   isImage: boolean;
   isHtml: boolean; // If true, content is HTML ready for TipTap
+  isMarkdown: boolean; // If true, content is raw markdown for TipTap Markdown parser
 } {
   if (!clipboardData) {
-    return { content: '', wasConverted: false, isImage: false, isHtml: false };
+    return { content: '', wasConverted: false, isImage: false, isHtml: false, isMarkdown: false };
   }
 
-  // Check for image first
-  if (hasImageContent(clipboardData)) {
-    return { content: '', wasConverted: false, isImage: true, isHtml: false };
+  // Only short-circuit for pure image clipboard (no text/html).
+  // When clipboard has both text/html and image/* (e.g. webpage copy), process
+  // the HTML so text content is not silently dropped (FR-006).
+  if (hasOnlyImageContent(clipboardData)) {
+    return { content: '', wasConverted: false, isImage: true, isHtml: false, isMarkdown: false };
   }
 
   // Get both HTML and plain text
@@ -317,14 +319,21 @@ export function processPasteContent(clipboardData: DataTransfer | null): {
   const plainText = getPlainText(clipboardData);
 
   // Case 1: Rich HTML from external source (Google Docs, Word, etc.)
-  // Convert HTML → Markdown → HTML (to normalize formatting)
+  // Convert HTML → Markdown, then let TipTap's Markdown parser handle insertion.
+  // This avoids a lossy markdown-it round-trip that loses task list semantics
+  // (markdown-it doesn't render `- [x]` as proper checkboxes, so TipTap
+  // wouldn't create taskItem nodes from the resulting HTML).
   if (html && isRichHtml(html, plainText)) {
     try {
       const markdown = htmlToMarkdown(html);
       if (markdown) {
-        // Convert back to HTML for TipTap insertion
-        const cleanHtml = markdownToHtml(markdown);
-        return { content: cleanHtml, wasConverted: true, isImage: false, isHtml: true };
+        return {
+          content: markdown,
+          wasConverted: true,
+          isImage: false,
+          isHtml: false,
+          isMarkdown: true,
+        };
       }
     } catch {
       // Fall through to plain text handling
@@ -332,11 +341,23 @@ export function processPasteContent(clipboardData: DataTransfer | null): {
   }
 
   // Case 2: Plain text that looks like markdown (tables, lists, headers, etc.)
+  // Pass raw markdown to TipTap's Markdown parser for best fidelity
   if (plainText && looksLikeMarkdown(plainText)) {
-    const htmlContent = markdownToHtml(plainText);
-    return { content: htmlContent, wasConverted: true, isImage: false, isHtml: true };
+    return {
+      content: plainText,
+      wasConverted: true,
+      isImage: false,
+      isHtml: false,
+      isMarkdown: true,
+    };
   }
 
   // Case 3: Plain text without markdown - let TipTap handle it
-  return { content: plainText, wasConverted: false, isImage: false, isHtml: false };
+  return {
+    content: plainText,
+    wasConverted: false,
+    isImage: false,
+    isHtml: false,
+    isMarkdown: false,
+  };
 }

@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2025-2026 Concret.io
+﻿/**
+ * Copyright (c) 2025-2026 DK-AI
  *
  * Licensed under the MIT License. See LICENSE file in the project root for details.
  */
@@ -14,6 +14,7 @@
  */
 
 import { getRememberedFolder, setRememberedFolder, getDefaultImagePath } from './imageConfirmation';
+import { createModalOverlay, PRIMARY_BUTTON_STYLE, SECONDARY_BUTTON_STYLE } from './dialogFactory';
 
 /**
  * Options for handling local image outside repo
@@ -35,70 +36,78 @@ export async function showLocalImageOutsideRepoDialog(
     const rememberedFolder = getRememberedFolder();
     const targetFolder = rememberedFolder || defaultFolder || getDefaultImagePath();
 
-    // Create modal overlay
-    const overlay = document.createElement('div');
-    overlay.className = 'local-image-outside-repo-overlay';
-    overlay.style.cssText = `
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(0, 0, 0, 0.5);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 10000;
-    `;
+    let resolved = false;
 
-    // Create dialog
-    const dialog = document.createElement('div');
+    // Handle confirm
+    const handleConfirm = () => {
+      if (resolved) return;
+      resolved = true;
+      const action = editInPlaceRadio.checked ? 'edit-in-place' : 'copy-to-repo';
+      const folder = copyToRepoRadio.checked
+        ? copyFolderInput.value.trim() || defaultFolder
+        : undefined;
+      const remember = rememberCheckbox.checked;
+
+      if (remember && folder) {
+        setRememberedFolder(folder);
+      }
+
+      remove();
+      resolve({
+        action: action as 'edit-in-place' | 'copy-to-repo',
+        targetFolder: folder,
+      });
+    };
+
+    const handleCancel = () => {
+      if (resolved) return;
+      resolved = true;
+      remove();
+      resolve(null);
+    };
+
+    const { dialog, remove } = createModalOverlay({
+      onClose: handleCancel,
+      minWidth: '450px',
+      maxWidth: '550px',
+    });
     dialog.className = 'local-image-outside-repo-dialog';
-    dialog.style.cssText = `
-      background: var(--vscode-editor-background);
-      border: 1px solid var(--vscode-panel-border);
-      border-radius: 6px;
-      padding: 20px;
-      min-width: 450px;
-      max-width: 550px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-    `;
 
     dialog.innerHTML = `
       <div style="display: flex; align-items: center; margin-bottom: 16px;">
         <span style="font-size: 24px; margin-right: 12px;">📁</span>
-        <h3 style="margin: 0; color: var(--vscode-foreground);">
+        <h3 style="margin: 0; color: var(--md-foreground);">
           Image Outside Workspace
         </h3>
       </div>
 
-      <p style="margin: 0 0 16px 0; color: var(--vscode-foreground); line-height: 1.5;">
+      <p style="margin: 0 0 16px 0; color: var(--md-foreground); line-height: 1.5;">
         This image is on your local disk but outside the current workspace. How would you like to proceed?
       </p>
 
-      <div style="margin-bottom: 12px; padding: 8px; background: var(--vscode-textBlockQuote-background); border-left: 3px solid var(--vscode-textBlockQuote-border); border-radius: 3px;">
-        <div style="font-size: 11px; color: var(--vscode-descriptionForeground); margin-bottom: 4px;">Image Path:</div>
-        <div style="font-size: 12px; color: var(--vscode-foreground); word-break: break-all; font-family: var(--vscode-editor-font-family, monospace);">
+      <div style="margin-bottom: 12px; padding: 8px; background: var(--md-quote-bg); border-left: 3px solid var(--md-quote-border); border-radius: 3px;">
+        <div style="font-size: 11px; color: var(--md-muted); margin-bottom: 4px;">Image Path:</div>
+        <div style="font-size: 12px; color: var(--md-foreground); word-break: break-all; font-family: var(--md-mono-font);">
           ${imagePath}
         </div>
       </div>
 
       <div style="margin-bottom: 20px;">
-        <label style="display: flex; align-items: flex-start; padding: 12px; border: 1px solid var(--vscode-panel-border); border-radius: 4px; margin-bottom: 8px; cursor: pointer; background: var(--vscode-list-hoverBackground);">
+        <label style="display: flex; align-items: flex-start; padding: 12px; border: 1px solid var(--md-border); border-radius: 4px; margin-bottom: 8px; cursor: pointer; background: var(--md-hover-bg);">
           <input type="radio" name="local-image-action" value="edit-in-place" checked style="margin-right: 12px; margin-top: 2px;">
           <div style="flex: 1;">
-            <div style="font-weight: 500; color: var(--vscode-foreground); margin-bottom: 4px;">Edit in Place</div>
-            <div style="font-size: 11px; color: var(--vscode-descriptionForeground);">
+            <div style="font-weight: 500; color: var(--md-foreground); margin-bottom: 4px;">Edit in Place</div>
+            <div style="font-size: 11px; color: var(--md-muted);">
               Resize the original image file directly. The image will be modified at its current location.
             </div>
           </div>
         </label>
 
-        <label style="display: flex; align-items: flex-start; padding: 12px; border: 1px solid var(--vscode-panel-border); border-radius: 4px; cursor: pointer;">
+        <label style="display: flex; align-items: flex-start; padding: 12px; border: 1px solid var(--md-border); border-radius: 4px; cursor: pointer;">
           <input type="radio" name="local-image-action" value="copy-to-repo" style="margin-right: 12px; margin-top: 2px;">
           <div style="flex: 1;">
-            <div style="font-weight: 500; color: var(--vscode-foreground); margin-bottom: 4px;">Copy to Workspace & Edit</div>
-            <div style="font-size: 11px; color: var(--vscode-descriptionForeground); margin-bottom: 8px;">
+            <div style="font-weight: 500; color: var(--md-foreground); margin-bottom: 4px;">Copy to Workspace & Edit</div>
+            <div style="font-size: 11px; color: var(--md-muted); margin-bottom: 8px;">
               Copy the image to your workspace first, then resize it. The original file remains unchanged.
             </div>
             <div id="copy-folder-input-container" style="display: none; margin-top: 8px;">
@@ -109,16 +118,16 @@ export async function showLocalImageOutsideRepoDialog(
                 style="
                   width: 100%;
                   padding: 6px 8px;
-                  background: var(--vscode-input-background);
-                  color: var(--vscode-input-foreground);
-                  border: 1px solid var(--vscode-input-border);
+                  background: var(--md-input-bg);
+                  color: var(--md-input-fg);
+                  border: 1px solid var(--md-border);
                   border-radius: 3px;
-                  font-family: var(--vscode-font-family);
+                  font-family: var(--md-font-family);
                   font-size: 12px;
                 "
                 placeholder="e.g., images, assets/img"
               />
-              <small style="display: block; margin-top: 4px; color: var(--vscode-descriptionForeground); font-size: 11px;">
+              <small style="display: block; margin-top: 4px; color: var(--md-muted); font-size: 11px;">
                 Relative to current markdown file
               </small>
             </div>
@@ -127,39 +136,18 @@ export async function showLocalImageOutsideRepoDialog(
       </div>
 
       <div style="margin-bottom: 20px;">
-        <label style="display: flex; align-items: center; color: var(--vscode-foreground); cursor: pointer;">
+        <label style="display: flex; align-items: center; color: var(--md-foreground); cursor: pointer;">
           <input type="checkbox" id="remember-local-choice" style="margin-right: 8px;">
           Remember for this session
         </label>
       </div>
 
       <div style="display: flex; gap: 8px; justify-content: flex-end;">
-        <button id="cancel-local-image" style="
-          padding: 6px 14px;
-          background: var(--vscode-button-secondaryBackground);
-          color: var(--vscode-button-secondaryForeground);
-          border: none;
-          border-radius: 3px;
-          cursor: pointer;
-          font-family: var(--vscode-font-family);
-        ">Cancel</button>
-        <button id="confirm-local-image" style="
-          padding: 6px 14px;
-          background: var(--vscode-button-background);
-          color: var(--vscode-button-foreground);
-          border: none;
-          border-radius: 3px;
-          cursor: pointer;
-          font-family: var(--vscode-font-family);
-          font-weight: 500;
-        ">Continue</button>
+        <button id="cancel-local-image" style="${SECONDARY_BUTTON_STYLE}">Cancel</button>
+        <button id="confirm-local-image" style="${PRIMARY_BUTTON_STYLE}">Continue</button>
       </div>
     `;
 
-    overlay.appendChild(dialog);
-    document.body.appendChild(overlay);
-
-    // Get elements
     const editInPlaceRadio = dialog.querySelector(
       'input[value="edit-in-place"]'
     ) as HTMLInputElement;
@@ -183,46 +171,14 @@ export async function showLocalImageOutsideRepoDialog(
     editInPlaceRadio.addEventListener('change', updateFolderInputVisibility);
     copyToRepoRadio.addEventListener('change', updateFolderInputVisibility);
 
-    // Handle confirm
-    const handleConfirm = () => {
-      const action = editInPlaceRadio.checked ? 'edit-in-place' : 'copy-to-repo';
-      const folder = copyToRepoRadio.checked
-        ? copyFolderInput.value.trim() || defaultFolder
-        : undefined;
-      const remember = rememberCheckbox.checked;
-
-      if (remember && folder) {
-        setRememberedFolder(folder);
-      }
-
-      document.body.removeChild(overlay);
-      resolve({
-        action: action as 'edit-in-place' | 'copy-to-repo',
-        targetFolder: folder,
-      });
-    };
-
-    // Handle cancel
-    const handleCancel = () => {
-      document.body.removeChild(overlay);
-      resolve(null);
-    };
-
-    // Event listeners
     confirmBtn.addEventListener('click', handleConfirm);
     cancelBtn.addEventListener('click', handleCancel);
-    overlay.addEventListener('click', e => {
-      if (e.target === overlay) handleCancel();
-    });
 
-    // Enter to confirm, Escape to cancel
+    // Enter to confirm
     dialog.addEventListener('keydown', e => {
       if (e.key === 'Enter') {
         e.preventDefault();
         handleConfirm();
-      } else if (e.key === 'Escape') {
-        e.preventDefault();
-        handleCancel();
       }
     });
   });

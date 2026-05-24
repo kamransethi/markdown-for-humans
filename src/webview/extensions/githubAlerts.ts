@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2025-2026 Concret.io
+﻿/**
+ * Copyright (c) 2025-2026 DK-AI
  *
  * Licensed under the MIT License. See LICENSE file in the project root for details.
  */
@@ -15,16 +15,26 @@ import type {
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { Fragment } from '@tiptap/pm/model';
 
-/**
- * GitHub Alerts Extension
- *
- * Supports GitHub-style callout alerts:
- * - NOTE, TIP, IMPORTANT, WARNING, CAUTION
- * - Renders with colored borders, icons, and labels
- * - Round-trips markdown syntax `> [!TYPE]`
- */
+declare module '@tiptap/core' {
+  interface Commands<ReturnType> {
+    githubAlerts: {
+      /**
+       * Toggle a GitHub alert
+       */
+      toggleAlert: (type: AlertType) => ReturnType;
+    };
+  }
+}
 
 export type AlertType = 'NOTE' | 'TIP' | 'IMPORTANT' | 'WARNING' | 'CAUTION';
+
+/** Single source of truth for valid alert types */
+export const ALERT_TYPES: readonly AlertType[] = ['NOTE', 'TIP', 'IMPORTANT', 'WARNING', 'CAUTION'];
+
+/** Matches `[!TYPE]` at the start of a line (case-insensitive) */
+const ALERT_MARKER_RE = /^\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]$/i;
+/** Matches `[!TYPE]` with optional trailing whitespace */
+const ALERT_MARKER_STRIP_RE = /^\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*/i;
 
 export const GitHubAlerts = Node.create({
   name: 'githubAlert',
@@ -37,7 +47,7 @@ export const GitHubAlerts = Node.create({
 
   defining: true,
 
-  isolating: true,
+  isolating: false,
 
   atom: false,
 
@@ -47,13 +57,30 @@ export const GitHubAlerts = Node.create({
         default: null,
         parseHTML: element => {
           const type = element.getAttribute('data-alert-type');
-          const validTypes: AlertType[] = ['NOTE', 'TIP', 'IMPORTANT', 'WARNING', 'CAUTION'];
-          return validTypes.includes(type as AlertType) ? type : null;
+          return ALERT_TYPES.includes(type as AlertType) ? type : null;
         },
         renderHTML: attributes => ({
           'data-alert-type': attributes.alertType,
         }),
       },
+    };
+  },
+
+  addCommands() {
+    return {
+      toggleAlert:
+        (alertType: AlertType) =>
+        ({ commands, editor }) => {
+          if (editor.isActive('githubAlert', { alertType })) {
+            return commands.lift('githubAlert');
+          }
+
+          if (editor.isActive('githubAlert')) {
+            return commands.updateAttributes('githubAlert', { alertType });
+          }
+
+          return commands.wrapIn('githubAlert', { alertType });
+        },
     };
   },
 
@@ -64,8 +91,7 @@ export const GitHubAlerts = Node.create({
         priority: 100,
         getAttrs: (element: HTMLElement) => {
           const alertType = element.getAttribute('data-alert-type');
-          const validTypes: AlertType[] = ['NOTE', 'TIP', 'IMPORTANT', 'WARNING', 'CAUTION'];
-          if (alertType && validTypes.includes(alertType as AlertType)) {
+          if (alertType && ALERT_TYPES.includes(alertType as AlertType)) {
             return { alertType };
           }
           return false;
@@ -102,37 +128,33 @@ export const GitHubAlerts = Node.create({
     const firstLine = lines[0]?.trim() || '';
 
     // Match [!TYPE] pattern (case insensitive)
-    const alertMatch = firstLine.match(/^\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]$/i);
+    const alertMatch = firstLine.match(ALERT_MARKER_RE);
     if (!alertMatch) {
       return []; // Not an alert, let default blockquote handle it
     }
 
     const alertType = alertMatch[1].toUpperCase() as AlertType;
-    const validTypes: AlertType[] = ['NOTE', 'TIP', 'IMPORTANT', 'WARNING', 'CAUTION'];
-    if (!validTypes.includes(alertType)) {
+    if (!ALERT_TYPES.includes(alertType)) {
       return [];
     }
 
     // Get child tokens (paragraphs, etc.)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     const childTokens = Array.isArray((token as any).tokens)
-      ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        JSON.parse(JSON.stringify((token as any).tokens))
+      ? JSON.parse(JSON.stringify((token as any).tokens))
       : [];
 
     // Remove the alert marker from the first paragraph if present
     if (
       childTokens.length > 0 &&
       childTokens[0].type === 'paragraph' &&
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       Array.isArray((childTokens[0] as any).tokens)
     ) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const paragraphTokens = (childTokens[0] as any).tokens as any[];
       const firstInline = paragraphTokens[0];
       if (firstInline && firstInline.type === 'text') {
         const trimmed = (firstInline.text ?? '').trim();
-        const markerMatch = trimmed.match(/^\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*/i);
+        const markerMatch = trimmed.match(ALERT_MARKER_STRIP_RE);
         if (markerMatch) {
           // Remove the marker from the text
           const remainingText = trimmed.replace(/^\[![^\]]+\]\s*/, '').trim();
@@ -272,7 +294,7 @@ export const GitHubAlerts = Node.create({
 
           // CRITICAL FIX: Process nodes in REVERSE order (from end to start)
           // This ensures position offsets remain valid after each replacement
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
           const nodesToConvert: Array<{ pos: number; node: any; alertType: AlertType }> = [];
 
           newState.doc.descendants((node, pos) => {
@@ -288,16 +310,15 @@ export const GitHubAlerts = Node.create({
               }
 
               const firstLine = text.split('\n')[0]?.trim() || '';
-              const alertMatch = firstLine.match(/^\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]$/i);
+              const alertMatch = firstLine.match(ALERT_MARKER_RE);
 
               if (!alertMatch) {
                 return true;
               }
 
               const alertType = alertMatch[1].toUpperCase() as AlertType;
-              const validTypes: AlertType[] = ['NOTE', 'TIP', 'IMPORTANT', 'WARNING', 'CAUTION'];
 
-              if (!validTypes.includes(alertType)) {
+              if (!ALERT_TYPES.includes(alertType)) {
                 return true;
               }
 

@@ -1,4 +1,4 @@
-/** @type {import('jest').Config} */
+﻿/** @type {import('jest').Config} */
 module.exports = {
     preset: 'ts-jest',
     testEnvironment: 'node',
@@ -32,6 +32,11 @@ module.exports = {
     moduleNameMapper: {
         '^vscode$': '<rootDir>/src/__mocks__/vscode.ts',
         '^mermaid$': '<rootDir>/src/__mocks__/mermaid.ts',
+        '^marked$': '<rootDir>/node_modules/marked/lib/marked.umd.js',
+        '^emoji-picker-element$': '<rootDir>/src/__mocks__/emoji-picker-element.ts',
+        '^tiptap-extension-code-block-shiki$': '<rootDir>/src/__mocks__/tiptap-extension-code-block-shiki.ts',
+        '^tiptap-extension-global-drag-handle$': '<rootDir>/src/__mocks__/tiptap-extension-global-drag-handle.ts',
+        '^@tiptap/suggestion$': '<rootDir>/src/__mocks__/@tiptap/suggestion.ts',
         '\\.(css|less|scss)$': '<rootDir>/src/__mocks__/styleMock.ts'
     },
     setupFiles: ['<rootDir>/src/__tests__/setup.ts'],

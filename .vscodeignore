@@ -7,12 +7,11 @@ dist/**/*.map
 
 # Development and documentation files
 docs/**
-roadmap/**
 wiki/**
-vibe-coding-rules/**
 prompts/**
 specs/**
 internal/**
+.specify/**
 marketplace-assets/**
 AGENTS.md
 CONTRIBUTING.md
@@ -22,7 +21,6 @@ EULA.md
 PRIVACY_POLICY.md
 TERMS_OF_USE.md
 THIRD_PARTY_LICENSES.md
-CLAUDE.md
 TODOs.md
 
 # Development files
@@ -33,6 +31,8 @@ test-docs/**
 coverage/**
 *.log
 *.vsix
+dist/*.vsix
+dist/**/*.vsix
 *.tsbuildinfo
 tsconfig.tsbuildinfo
 
@@ -75,6 +75,12 @@ Desktop.ini
 .windsurf/**
 .cursor/**
 .agent/**
+.gemini/**
+
+# Exclude test files and folders
+test_*
+test-*
+test_pasted/**
 
 # Include only essential files for marketplace
 !dist/**
@@ -83,3 +89,9 @@ Desktop.ini
 !package.json
 !CHANGELOG.md
 !icon.png
+!demo.html
+
+# Exclude VSIX from package even if in dist/
+dist/*.vsix
+dist/**/*.vsix
+*.vsix

@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2025-2026 Concret.io
+﻿/**
+ * Copyright (c) 2025-2026 DK-AI
  *
  * Licensed under the MIT License. See LICENSE file in the project root for details.
  */
@@ -11,6 +11,7 @@
  */
 
 import { Editor } from '@tiptap/core';
+import { getMermaidPositions, serializeDocToHtml } from './docSerializer';
 
 /**
  * Export content data structure
@@ -21,6 +22,8 @@ export interface ExportContent {
     id: string;
     pngDataUrl: string;
     originalSvg: string;
+    width?: number; // Rendered width in pixels
+    height?: number; // Rendered height in pixels
   }>;
 }
 
@@ -31,52 +34,65 @@ export interface ExportContent {
  * @returns Export-ready content with HTML and Mermaid PNGs
  */
 export async function collectExportContent(editor: Editor): Promise<ExportContent> {
-  // Get HTML content from editor
-  const editorElement = editor.view.dom as HTMLElement;
-  const clonedContent = editorElement.cloneNode(true) as HTMLElement;
-
-  // Find all Mermaid diagrams
-  const mermaidWrappers = clonedContent.querySelectorAll('.mermaid-wrapper');
   const mermaidImages: ExportContent['mermaidImages'] = [];
 
-  // Convert each Mermaid SVG to PNG
-  for (let i = 0; i < mermaidWrappers.length; i++) {
-    const wrapper = mermaidWrappers[i] as HTMLElement;
-    const renderDiv = wrapper.querySelector('.mermaid-render') as HTMLElement;
+  // FR-003: use AST serialization — no cloneNode, no CSS-class queries.
+  // serializeDocToHtml walks doc.descendants() and:
+  //   - emits <img data-mermaid-id="N"> placeholders for mermaid nodes
+  //   - reads node.attrs.rawHtml for raw-HTML inline/block nodes
+  //   - normalises image src from data-markdown-src attrs
+  const { html: serializedHtml, mermaidIds } = serializeDocToHtml(editor);
 
-    if (renderDiv) {
-      const svgElement = renderDiv.querySelector('svg');
+  // Convert mermaid diagrams to PNG.
+  // Use getMermaidPositions() + editor.view.nodeDOM(pos) to locate the live
+  // rendered SVG by document position — avoids CSS class coupling.
+  const mermaidPositions = getMermaidPositions(editor);
+  for (let i = 0; i < mermaidIds.length; i++) {
+    const id = mermaidIds[i];
+    const pos = mermaidPositions[i];
 
-      if (svgElement) {
-        try {
-          // Convert SVG to PNG
-          const pngDataUrl = await svgToPng(svgElement);
-          const id = `mermaid-${i}`;
+    if (pos === undefined) continue;
 
-          mermaidImages.push({
-            id,
-            pngDataUrl,
-            originalSvg: svgElement.outerHTML,
-          });
+    const domNode = editor.view.nodeDOM(pos);
+    const renderBlock =
+      domNode instanceof HTMLElement
+        ? (domNode.querySelector('.mermaid-render-block') as HTMLElement | null)
+        : null;
 
-          // Replace SVG with img tag in cloned content
-          const imgElement = document.createElement('img');
-          imgElement.src = pngDataUrl;
-          imgElement.alt = `Mermaid diagram ${i + 1}`;
-          imgElement.className = 'mermaid-export-image';
-          imgElement.setAttribute('data-mermaid-id', id);
+    if (!renderBlock) continue;
 
-          // Replace the mermaid-wrapper with the image
-          wrapper.parentNode?.replaceChild(imgElement, wrapper);
-        } catch (error) {
-          console.error('Failed to convert Mermaid SVG to PNG:', error);
-          // Keep the SVG as fallback
-        }
-      }
+    const svgElement = renderBlock.querySelector('svg') as unknown as SVGSVGElement | null;
+    if (!svgElement) continue;
+
+    try {
+      const renderBlockRect = renderBlock.getBoundingClientRect();
+      const renderedWidth =
+        renderBlockRect.width > 0 ? Math.round(renderBlockRect.width) : undefined;
+      const renderedHeight =
+        renderBlockRect.height > 0 ? Math.round(renderBlockRect.height) : undefined;
+
+      const pngDataUrl = await svgToPng(svgElement);
+
+      mermaidImages.push({
+        id,
+        pngDataUrl,
+        originalSvg: svgElement.outerHTML,
+        width: renderedWidth,
+        height: renderedHeight,
+      });
+    } catch (error) {
+      console.error('[DK-AI] Failed to convert Mermaid SVG to PNG:', error);
     }
   }
 
-  const finalHtml = clonedContent.innerHTML;
+  // Replace <img data-mermaid-id="N"> placeholders with PNG data URLs
+  let finalHtml = serializedHtml;
+  for (const entry of mermaidImages) {
+    finalHtml = finalHtml.replace(
+      new RegExp(`<img data-mermaid-id="${entry.id}"[^>]*>`, 'g'),
+      `<img src="${entry.pngDataUrl}" alt="Mermaid diagram" class="mermaid-export-image" data-mermaid-id="${entry.id}">`
+    );
+  }
 
   return {
     html: finalHtml,
@@ -85,7 +101,7 @@ export async function collectExportContent(editor: Editor): Promise<ExportConten
 }
 
 /**
- * Convert SVG element to PNG data URL
+ * Convert SVG element to PNG data URL, preserving aspect ratio and sans-serif font
  *
  * @param svgElement - SVG DOM element
  * @returns PNG image as data URL
@@ -93,14 +109,39 @@ export async function collectExportContent(editor: Editor): Promise<ExportConten
 async function svgToPng(svgElement: SVGSVGElement): Promise<string> {
   return new Promise((resolve, reject) => {
     try {
-      // Get SVG dimensions
-      const bbox = svgElement.getBoundingClientRect();
-      const width = bbox.width || 800;
-      const height = bbox.height || 600;
+      // Get SVG dimensions - try viewBox first as it has correct aspect ratio
+      let width = 800;
+      let height = 600;
 
-      // Create canvas
-      const canvas = document.createElement('canvas');
+      if (svgElement.viewBox?.baseVal) {
+        width = svgElement.viewBox.baseVal.width;
+        height = svgElement.viewBox.baseVal.height;
+      } else if (svgElement.width?.baseVal?.value && svgElement.height?.baseVal?.value) {
+        width = svgElement.width.baseVal.value;
+        height = svgElement.height.baseVal.value;
+      } else {
+        const bbox = svgElement.getBoundingClientRect();
+        if (bbox.width > 0 && bbox.height > 0) {
+          width = bbox.width;
+          height = bbox.height;
+        }
+      }
+
+      // Clone SVG and force sans-serif font to prevent inheriting serif from export document
+      const svgClone = svgElement.cloneNode(true) as SVGSVGElement;
+      const sansSerifFont =
+        "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
+      svgClone.style.fontFamily = sansSerifFont;
+
+      // Also set font-family on any text elements to ensure they don't inherit serif
+      const textElements = svgClone.querySelectorAll('text, tspan, g');
+      textElements.forEach(el => {
+        (el as HTMLElement).style.fontFamily = sansSerifFont;
+      });
+
+      // Create canvas with proper dimensions (high DPI)
       const scale = 2; // 2x for high quality
+      const canvas = document.createElement('canvas');
       canvas.width = width * scale;
       canvas.height = height * scale;
 
@@ -110,7 +151,7 @@ async function svgToPng(svgElement: SVGSVGElement): Promise<string> {
         return;
       }
 
-      // Scale for high quality
+      // Scale context for high quality rendering
       ctx.scale(scale, scale);
 
       // White background for PDFs
@@ -118,11 +159,13 @@ async function svgToPng(svgElement: SVGSVGElement): Promise<string> {
       ctx.fillRect(0, 0, width, height);
 
       // Convert SVG to image using data URL (avoids canvas tainting from blob URLs)
-      const svgData = new XMLSerializer().serializeToString(svgElement);
+      // Use the cloned SVG with sans-serif font forced
+      const svgData = new XMLSerializer().serializeToString(svgClone);
       const encodedSvgData = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgData);
 
       const img = new Image();
       img.onload = () => {
+        // Draw the image at exact dimensions to preserve aspect ratio
         ctx.drawImage(img, 0, 0, width, height);
 
         // Convert canvas to PNG

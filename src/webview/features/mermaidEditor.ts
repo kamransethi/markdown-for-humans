@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2025-2026 Concret.io
+﻿/**
+ * Copyright (c) 2025-2026 DK-AI
  *
  * Licensed under the MIT License. See LICENSE file in the project root for details.
  */
@@ -7,7 +7,7 @@
 /**
  * Mermaid Code Editor Modal
  *
- * Shows a modal dialog for editing mermaid diagram code, allowing users to:
+ * Shows a simple modal dialog for editing mermaid diagram code, allowing users to:
  * - Edit code in a proper textarea (no key conflicts with TipTap)
  * - Save changes or cancel
  * - Escape key closes without saving
@@ -19,7 +19,7 @@ interface MermaidEditResult {
 }
 
 /**
- * Show modal editor for mermaid code
+ * Show simple modal editor for mermaid code
  * Returns the edited code and whether it was saved
  */
 export async function showMermaidEditor(initialCode: string): Promise<MermaidEditResult> {
@@ -40,20 +40,47 @@ export async function showMermaidEditor(initialCode: string): Promise<MermaidEdi
       z-index: 10000;
     `;
 
+    // Block ALL keyboard/clipboard events from reaching TipTap underneath
+    // Also handle our own shortcuts (Escape, Ctrl+S) here in capture phase
+    const captureHandler = (e: Event) => {
+      e.stopPropagation();
+      if (e instanceof KeyboardEvent && e.type === 'keydown') {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          handleCancel();
+        } else if (e.key === 's' && (e.metaKey || e.ctrlKey)) {
+          e.preventDefault();
+          handleSave();
+        }
+      }
+    };
+
+    for (const evt of [
+      'keydown',
+      'keyup',
+      'keypress',
+      'paste',
+      'cut',
+      'copy',
+      'input',
+      'compositionstart',
+      'compositionend',
+      'compositionupdate',
+      'beforeinput',
+    ]) {
+      overlay.addEventListener(evt, captureHandler, true);
+    }
+
     // Create dialog
     const dialog = document.createElement('div');
     dialog.className = 'mermaid-editor-dialog';
     dialog.style.cssText = `
-      background: var(--vscode-editor-background);
-      border: 1px solid var(--vscode-panel-border);
+      background: var(--md-background);
+      border: 1px solid var(--md-border);
       border-radius: 6px;
       padding: 0;
-      width: clamp(60%, 70vw, 1100px);
-      max-width: 90vw;
-      min-width: 360px;
-      height: clamp(60%, 70vh, 90vh);
-      max-height: 90vh;
-      min-height: 320px;
+      width: clamp(60%, 800px, 90vw);
+      height: clamp(60%, 600px, 90vh);
       display: flex;
       flex-direction: column;
       box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
@@ -62,20 +89,21 @@ export async function showMermaidEditor(initialCode: string): Promise<MermaidEdi
     // Header
     const header = document.createElement('div');
     header.style.cssText = `
-      padding: 16px 20px;
-      border-bottom: 1px solid var(--vscode-panel-border);
+      padding: 12px 20px;
+      border-bottom: 1px solid var(--md-border);
       display: flex;
       justify-content: space-between;
       align-items: center;
+      flex-shrink: 0;
     `;
     header.innerHTML = `
-      <h3 style="margin: 0; color: var(--vscode-foreground); font-size: 14px; font-weight: 600;">
+      <h3 style="margin: 0; color: var(--md-foreground); font-size: 14px; font-weight: 600;">
         Edit Mermaid Diagram
       </h3>
       <button id="close-btn" style="
         background: none;
         border: none;
-        color: var(--vscode-foreground);
+        color: var(--md-foreground);
         font-size: 24px;
         line-height: 1;
         cursor: pointer;
@@ -85,19 +113,20 @@ export async function showMermaidEditor(initialCode: string): Promise<MermaidEdi
       " title="Close (Esc)" aria-label="Close">×</button>
     `;
 
-    // Textarea
+    // Editor Area
     const textarea = document.createElement('textarea');
     textarea.className = 'mermaid-editor-textarea';
     textarea.value = initialCode;
+    textarea.spellcheck = false;
     textarea.style.cssText = `
       flex: 1;
       padding: 16px 20px;
       margin: 0;
-      background: var(--vscode-editor-background);
-      color: var(--vscode-editor-foreground);
+      background: var(--md-background);
+      color: var(--md-foreground);
       border: none;
       font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, monospace;
-      font-size: 13px;
+      font-size: 14px;
       line-height: 1.6;
       resize: none;
       outline: none;
@@ -107,31 +136,33 @@ export async function showMermaidEditor(initialCode: string): Promise<MermaidEdi
     const footer = document.createElement('div');
     footer.style.cssText = `
       padding: 12px 20px;
-      border-top: 1px solid var(--vscode-panel-border);
+      border-top: 1px solid var(--md-border);
       display: flex;
-      gap: 8px;
+      gap: 12px;
       justify-content: flex-end;
-      background: var(--vscode-editor-background);
+      align-items: center;
+      background: var(--md-background);
+      flex-shrink: 0;
     `;
     footer.innerHTML = `
       <button id="cancel-btn" style="
-        padding: 6px 14px;
-        background: var(--vscode-button-secondaryBackground);
-        color: var(--vscode-button-secondaryForeground);
+        padding: 8px 16px;
+        background: var(--md-button-secondary-bg);
+        color: var(--md-button-secondary-fg);
         border: none;
-        border-radius: 3px;
+        border-radius: 4px;
         cursor: pointer;
-        font-family: var(--vscode-font-family);
+        font-family: var(--md-font-family);
         font-size: 13px;
       ">Cancel</button>
       <button id="save-btn" style="
-        padding: 6px 14px;
-        background: var(--vscode-button-background);
-        color: var(--vscode-button-foreground);
+        padding: 8px 16px;
+        background: var(--md-button-bg);
+        color: var(--md-button-fg);
         border: none;
-        border-radius: 3px;
+        border-radius: 4px;
         cursor: pointer;
-        font-family: var(--vscode-font-family);
+        font-family: var(--md-font-family);
         font-weight: 500;
         font-size: 13px;
       ">Save</button>
@@ -152,26 +183,23 @@ export async function showMermaidEditor(initialCode: string): Promise<MermaidEdi
     // Focus textarea
     setTimeout(() => {
       textarea.focus();
-      textarea.setSelectionRange(0, 0); // Cursor at start
+      textarea.setSelectionRange(0, 0);
     }, 0);
 
-    // Handle save
+    // Handlers
     const handleSave = () => {
       const code = textarea.value;
-      document.body.removeChild(overlay);
-      resolve({
-        code,
-        wasSaved: true,
-      });
+      if (document.body.contains(overlay)) {
+        document.body.removeChild(overlay);
+      }
+      resolve({ code, wasSaved: true });
     };
 
-    // Handle cancel
     const handleCancel = () => {
-      document.body.removeChild(overlay);
-      resolve({
-        code: initialCode,
-        wasSaved: false,
-      });
+      if (document.body.contains(overlay)) {
+        document.body.removeChild(overlay);
+      }
+      resolve({ code: initialCode, wasSaved: false });
     };
 
     // Event listeners
@@ -182,20 +210,6 @@ export async function showMermaidEditor(initialCode: string): Promise<MermaidEdi
     // Click outside to cancel
     overlay.addEventListener('click', e => {
       if (e.target === overlay) handleCancel();
-    });
-
-    // Keyboard shortcuts
-    overlay.addEventListener('keydown', e => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        e.stopPropagation();
-        handleCancel();
-      } else if (e.key === 's' && (e.metaKey || e.ctrlKey)) {
-        // Cmd/Ctrl+S to save
-        e.preventDefault();
-        e.stopPropagation();
-        handleSave();
-      }
     });
   });
 }

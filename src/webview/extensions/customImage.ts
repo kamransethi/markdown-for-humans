@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2025-2026 Concret.io
+ * Copyright (c) 2025-2026 DK-AI
  *
  * Licensed under the MIT License. See LICENSE file in the project root for details.
  */
@@ -15,28 +15,21 @@
  * - Proper atomic node behavior for reliable selection/deletion
  */
 
-import Image, { type ImageOptions } from '@tiptap/extension-image';
+import Image from '@tiptap/extension-image';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 import type { JSONContent, MarkdownRendererHelpers, RenderContext } from '@tiptap/core';
-import {
-  createImageMenuButton,
-  createImageMenu,
-  showImageMenu,
-  hideImageMenu,
-  isExternalImage,
-} from '../features/imageMenu';
-import { showImageMetadataFooter, hideImageMetadataFooter } from '../features/imageMetadata';
+import { createCustomImageMessagePlugin } from './customImageMessagePlugin';
+import { MessageType } from '../../shared/messageTypes';
 
 const INDENT_PIXELS_PER_LEVEL = 30;
 const INDENT_SPACES_PER_LEVEL = 4;
 const MAX_INDENT_PIXELS = 240;
 
-type CustomImageOptions = ImageOptions & {
-  getShowImageHoverOverlay: () => boolean;
-};
+function isExternalImage(src: string): boolean {
+  return src.startsWith('http://') || src.startsWith('https://') || src.startsWith('data:');
+}
 
 function getImageCacheBustTimestamp(markdownPath: string): number | null {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const maybeMap = (window as any)?._imageCacheBust;
   if (!(maybeMap instanceof Map)) {
     return null;
@@ -111,19 +104,6 @@ export const CustomImage = Image.extend({
   // Since inline is true, images belong to 'inline' group
   group: 'inline',
 
-  addOptions(): CustomImageOptions {
-    const parentOpts = (this.parent?.() ?? {}) as Partial<ImageOptions>;
-    return {
-      ...parentOpts,
-      inline: parentOpts.inline ?? true,
-      allowBase64: parentOpts.allowBase64 ?? true,
-      HTMLAttributes: parentOpts.HTMLAttributes ?? {},
-      resize: parentOpts.resize ?? false,
-      // Define a getter function so it always fetches the freshest dynamic value
-      getShowImageHoverOverlay: () => true,
-    };
-  },
-
   addProseMirrorPlugins() {
     return [
       // Disable default image paste handling to prevent double insertion
@@ -155,6 +135,7 @@ export const CustomImage = Image.extend({
           },
         },
       }),
+      createCustomImageMessagePlugin(this.editor),
     ];
   },
 
@@ -195,14 +176,27 @@ export const CustomImage = Image.extend({
       'indent-prefix': {
         default: null,
       },
+      width: {
+        default: null,
+        parseHTML: element => element.getAttribute('width'),
+        renderHTML: attributes => {
+          if (!attributes.width) return {};
+          return { width: attributes.width };
+        },
+      },
+      height: {
+        default: null,
+        parseHTML: element => element.getAttribute('height'),
+        renderHTML: attributes => {
+          if (!attributes.height) return {};
+          return { height: attributes.height };
+        },
+      },
     };
   },
 
   addNodeView() {
-    return ({ node, HTMLAttributes, editor, extension }) => {
-      const isHoverOverlayEnabled = () =>
-        extension?.options?.getShowImageHoverOverlay?.() !== false;
-
+    return ({ node, HTMLAttributes, editor }) => {
       // Create wrapper to hold image and resize icon
       const wrapper = document.createElement('span');
       wrapper.className = 'image-wrapper';
@@ -259,9 +253,7 @@ export const CustomImage = Image.extend({
 
         // Request resolution (needs vscode API access)
         // This will be done via a global function
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         if ((window as any).resolveImagePath) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           (window as any).resolveImagePath(pathToResolve).then((webviewUri: string) => {
             dom.src = applyCacheBust(webviewUri, cacheBustTimestamp);
             if (node.attrs.alt) {
@@ -274,88 +266,131 @@ export const CustomImage = Image.extend({
         }
       }
 
-      // Create three-dots menu button (shown on hover)
-      const menuButton = createImageMenuButton();
-      menuButton.setAttribute('title', 'Image options');
+      // Apply dimensions if present
+      if (node.attrs.width) {
+        dom.style.width = `${node.attrs.width}px`;
+      }
+      if (node.attrs.height) {
+        dom.style.height = `${node.attrs.height}px`;
+      }
 
-      // Check if this is an external image (hide menu for external images)
+      // Check if this is an external image
       const imageSrc = node.attrs['markdown-src'] || node.attrs.src;
-      const isExternal = isExternalImage(imageSrc);
-      const isLocal = !isExternal;
-
-      // Create dropdown menu (pass isLocal to conditionally show file location options)
-      const menu = createImageMenu(isLocal);
+      isExternalImage(imageSrc);
 
       // Track if image is loaded
       let isImageLoaded = dom.complete;
 
-      // Update loaded state when image loads
+      // Update loaded state when image loads; clear any missing state
       if (!isImageLoaded) {
         dom.addEventListener(
           'load',
           () => {
             isImageLoaded = true;
             dom.removeAttribute('data-loading');
+            wrapper.classList.remove('image-missing');
           },
           { once: true }
         );
         dom.setAttribute('data-loading', 'true');
       }
 
-      // Only show menu button on hover if image is loaded and not external
-      const handleMouseEnter = () => {
-        if (isImageLoaded && dom.complete && !isExternal) {
-          // Keep the image menu reachable regardless of hover overlay setting.
-          wrapper.classList.add('image-menu-active');
+      // If the image fails to load (missing file / bad path), show a clear error indicator
+      dom.addEventListener(
+        'error',
+        () => {
+          dom.removeAttribute('data-loading');
+          wrapper.classList.add('image-missing');
+          // Ensure screen readers get useful text
+          dom.alt = node.attrs.alt || 'Image not found';
+        },
+        { once: true }
+      );
 
-          if (isHoverOverlayEnabled()) {
-            wrapper.classList.add('image-hover-active');
-            // Show metadata footer
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const vscodeApi = (window as any).vscode;
-            if (vscodeApi) {
-              showImageMetadataFooter(dom, wrapper, vscodeApi);
-            }
-          }
-        }
-      };
+      // Append image as node view content
+      wrapper.appendChild(dom);
 
-      const handleMouseLeave = (e: MouseEvent) => {
-        // Don't hide if menu is open
-        if (menu.style.display !== 'none') {
+      // Double-click handler: open .drawio.svg files in the Draw.io extension
+      wrapper.addEventListener('dblclick', (e: MouseEvent) => {
+        // Determine the markdown source path (most reliable) or fall back to src
+        const markdownSrc = node.attrs['markdown-src'] as string | null;
+        const rawSrc = markdownSrc || (node.attrs.src as string | null) || '';
+
+        // Only handle local .drawio.svg files (not http:// or data: URLs)
+        if (
+          !rawSrc ||
+          rawSrc.startsWith('http://') ||
+          rawSrc.startsWith('https://') ||
+          rawSrc.startsWith('data:')
+        ) {
           return;
         }
-        // Don't hide if moving to another part of the wrapper
-        const relatedTarget = e.relatedTarget as HTMLElement;
-        if (relatedTarget && wrapper.contains(relatedTarget)) {
+
+        if (!rawSrc.toLowerCase().endsWith('.drawio.svg')) {
           return;
         }
-        wrapper.classList.remove('image-menu-active');
-        wrapper.classList.remove('image-hover-active');
-        // Hide metadata footer
-        hideImageMetadataFooter(wrapper);
-      };
 
-      wrapper.addEventListener('mouseenter', handleMouseEnter);
-      wrapper.addEventListener('mouseleave', handleMouseLeave);
-
-      // Click menu button to show/hide dropdown
-      menuButton.addEventListener('click', e => {
         e.preventDefault();
         e.stopPropagation();
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
         const vscodeApi = (window as any).vscode;
-        if (menu.style.display === 'none') {
-          showImageMenu(menu, menuButton, dom, editor, vscodeApi);
-        } else {
-          hideImageMenu(menu);
+        if (vscodeApi) {
+          vscodeApi.postMessage({
+            type: MessageType.OPEN_DRAWIO_FILE,
+            path: rawSrc,
+          });
         }
       });
 
-      // Append menu as sibling of button (not child) for correct positioning
-      wrapper.appendChild(dom);
-      wrapper.appendChild(menuButton);
-      wrapper.appendChild(menu);
+      // Add resize handle
+      const resizeHandle = document.createElement('div');
+      resizeHandle.className = 'image-resize-handle';
+      wrapper.appendChild(resizeHandle);
+
+      // Resize logic
+      let isResizing = false;
+      let startX = 0;
+      let startWidth = 0;
+      let aspectRatio = 0;
+
+      const onMouseDown = (e: MouseEvent) => {
+        isResizing = true;
+        startX = e.clientX;
+        startWidth = dom.clientWidth;
+        aspectRatio = dom.naturalWidth / dom.naturalHeight || dom.clientWidth / dom.clientHeight;
+
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
+        e.preventDefault();
+        e.stopPropagation();
+      };
+
+      const onMouseMove = (e: MouseEvent) => {
+        if (!isResizing) return;
+
+        const deltaX = e.clientX - startX;
+        const newWidth = Math.max(20, startWidth + deltaX);
+        const newHeight = newWidth / aspectRatio;
+
+        dom.style.width = `${newWidth}px`;
+        dom.style.height = `${newHeight}px`;
+      };
+
+      const onMouseUp = () => {
+        if (!isResizing) return;
+        isResizing = false;
+
+        document.removeEventListener('mousemove', onMouseMove);
+        document.removeEventListener('mouseup', onMouseUp);
+
+        // Update node attributes
+        const width = Math.round(dom.clientWidth);
+        const height = Math.round(dom.clientHeight);
+
+        editor.commands.updateAttributes('image', { width, height });
+      };
+
+      resizeHandle.addEventListener('mousedown', onMouseDown);
 
       // No need to setup image click handler - only icon opens modal
       return {
@@ -378,8 +413,17 @@ export const CustomImage = Image.extend({
     const alt = node.attrs?.alt || '';
     const indentPrefix =
       typeof node.attrs?.['indent-prefix'] === 'string' ? node.attrs['indent-prefix'] : '';
+    const width = node.attrs?.width;
+    const height = node.attrs?.height;
     const destination = typeof src === 'string' ? src : '';
     const formattedDestination = /\s/.test(destination) ? `<${destination}>` : destination;
+
+    // Use HTML img tag if width or height is present to preserve dimensions
+    if (width || height) {
+      const widthAttr = width ? ` width="${width}"` : '';
+      const heightAttr = height ? ` height="${height}"` : '';
+      return `${indentPrefix}<img src="${destination}" alt="${alt}"${widthAttr}${heightAttr} />`;
+    }
 
     // Use markdown-src if available (preserves original path with dimensions after resize)
     // Fall back to src if markdown-src is not set

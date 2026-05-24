@@ -15,6 +15,7 @@
 
 const esbuild = require('esbuild');
 const fs = require('fs');
+const path = require('path');
 
 const args = process.argv.slice(2);
 const isProduction = args.includes('--prod') || process.env.NODE_ENV === 'production';
@@ -35,6 +36,42 @@ const buildOptions = {
   pure: isProduction ? ['console.log', 'console.debug', 'console.info'] : [],
 };
 
+function copyDirRecursive(srcDir, destDir) {
+  if (!fs.existsSync(srcDir)) {
+    return;
+  }
+
+  fs.mkdirSync(destDir, { recursive: true });
+  const entries = fs.readdirSync(srcDir, { withFileTypes: true });
+
+  for (const entry of entries) {
+    const srcPath = path.join(srcDir, entry.name);
+    const destPath = path.join(destDir, entry.name);
+
+    if (entry.isDirectory()) {
+      copyDirRecursive(srcPath, destPath);
+    } else {
+      fs.copyFileSync(srcPath, destPath);
+    }
+  }
+}
+
+function copyPandocLuaFilters() {
+  const srcLuaDir = path.join(__dirname, '..', 'src', 'features', 'pandoc', 'lua');
+  const distLuaDir = path.join(__dirname, '..', 'dist', 'lua');
+  copyDirRecursive(srcLuaDir, distLuaDir);
+}
+
+function copySqlJsWasm() {
+  const wasmSrc = path.join(__dirname, '..', 'node_modules', 'sql.js', 'dist', 'sql-wasm.wasm');
+  const wasmDest = path.join(__dirname, '..', 'dist', 'sql-wasm.wasm');
+  if (fs.existsSync(wasmSrc)) {
+    fs.copyFileSync(wasmSrc, wasmDest);
+  } else {
+    console.warn('⚠️  sql-wasm.wasm not found — Knowledge Graph features will not work');
+  }
+}
+
 async function build() {
   if (isWatch) {
     // Watch mode - development build
@@ -50,6 +87,8 @@ async function build() {
     // One-time build
     try {
       await esbuild.build(buildOptions);
+      copyPandocLuaFilters();
+      copySqlJsWasm();
 
       // Ensure release builds don't leave stale sourcemaps in dist/
       if (isProduction || noSourcemap) {
@@ -61,8 +100,7 @@ async function build() {
       }
 
       console.log(
-        `✅ Extension build complete${isProduction ? ' (production)' : ' (development)'}${
-          noSourcemap ? ' (no sourcemap)' : ''
+        `✅ Extension build complete${isProduction ? ' (production)' : ' (development)'}${noSourcemap ? ' (no sourcemap)' : ''
         }`
       );
     } catch (error) {

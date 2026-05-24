@@ -146,7 +146,6 @@ export async function runAudit(editor: Editor): Promise<AuditIssue[]> {
     }
 
     if (node.marks && node.marks.length > 0) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const linkMark = node.marks.find((m: any) => m.type.name === 'link');
       if (linkMark) {
         const href = linkMark.attrs.href;
@@ -269,7 +268,6 @@ const auditPickFileCallbacks = new Map<string, (path: string | null) => void>();
  */
 export function requestFilePickerForIssue(fileType: AuditFileType): Promise<string | null> {
   return new Promise(resolve => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const vscodeApi = (window as any).vscode;
     if (!vscodeApi) {
       resolve(null);
@@ -314,7 +312,6 @@ export function handleAuditPickFileResult(requestId: string, selectedPath: strin
 
 function checkFileExistence(relativePath: string): Promise<FileCheckResult> {
   return new Promise(resolve => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const vscodeApi = (window as any).vscode;
     if (!vscodeApi) {
       resolve({ exists: true });
@@ -343,7 +340,6 @@ function checkFileExistence(relativePath: string): Promise<FileCheckResult> {
 }
 
 function checkUrlStatus(url: string): Promise<UrlCheckResult> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const vscodeApi = (window as any).vscode;
   if (!vscodeApi) {
     return Promise.resolve('unreachable');

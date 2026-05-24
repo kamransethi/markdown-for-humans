@@ -1,4 +1,4 @@
-# Contributing to Markdown for Humans
+﻿# Contributing to Flux Flow Markdown Editor
 
 Welcome! This guide will help you set up the project, understand its architecture, and start contributing.
 
@@ -23,8 +23,8 @@ Welcome! This guide will help you set up the project, understand its architectur
 
 ```bash
 # Clone the repository
-git clone https://github.com/concretios/markdown-for-humans.git
-cd markdown-for-humans
+git clone https://github.com/kamransethi/gpt-ai-markdown-editor.git
+cd gpt-ai-markdown-editor
 
 # Install dependencies
 npm install
@@ -63,8 +63,8 @@ code --version   # Should be 1.85+
 ### 1. Clone and Install
 
 ```bash
-git clone https://github.com/concretios/markdown-for-humans.git
-cd markdown-for-humans
+git clone https://github.com/kamransethi/gpt-ai-markdown-editor.git
+cd gpt-ai-markdown-editor
 npm install
 ```
 
@@ -258,7 +258,7 @@ After packaging, install the `.vsix` file locally to test:
 
 **Via Command Line:**
 ```bash
-code --install-extension markdown-for-humans-0.1.0.vsix
+code --install-extension gpt-ai-markdown-editor-0.1.0.vsix
 ```
 
 **Via VS Code UI:**
@@ -340,7 +340,7 @@ git commit -m "fix: resolve cursor jump after image insert"
 
 ### 🐛 Report Bugs
 
-1. Check [existing issues](https://github.com/concretios/markdown-for-humans/issues)
+1. Check [existing issues](https://github.com/kamransethi/gpt-ai-markdown-editor/issues)
 2. Check [KNOWN_ISSUES.md](./KNOWN_ISSUES.md) to see if it's a known issue
 3. **Record a screen video** using [Loom.com](https://www.loom.com) or similar tool showing the bug
 4. Create a new issue with:
@@ -354,45 +354,28 @@ git commit -m "fix: resolve cursor jump after image insert"
 ### 💡 Suggest Features
 
 1. Check existing feature requests
-2. Open a [GitHub Discussion](https://github.com/concretios/markdown-for-humans/discussions)
+2. Open a [GitHub Discussion](https://github.com/kamransethi/gpt-ai-markdown-editor/discussions)
 3. Describe the problem it solves
 4. Provide examples/mockups if possible
 
 ### 📋 Planning Workflow
 
-We use a **planning-first approach** where features are planned before implementation. 
+This project uses [GitHub Spec Kit](https://github.com/github/spec-kit) for Spec-Driven Development.
 
-**📝 Start with the template:** Use [`roadmap/task-plan-template.md`](./roadmap/task-plan-template.md) as your starting point. It provides a structured format with hints for each section.
+**For new features, use the spec-kit workflow:**
 
-**Creating Plans:**
+1. `/speckit.specify` — Define what you want to build
+2. `/speckit.plan` — Create a technical implementation plan
+3. `/speckit.tasks` — Break down into actionable tasks
+4. `/speckit.implement` — Execute implementation
 
-1. **Use the template**: 
-   - Prompt your AI tool: "Create a task plan using `roadmap/task-plan-template.md` for [feature name]"
-   - Or copy the template and fill it in manually
-   - The template includes placeholders and hints to guide you
-
-2. **If your tool has a plan feature** (like Cursor):
-   - Use it — plans are typically created in tool-specific locations (e.g., `.cursor/plans/`)
-   - Move to pipeline when ready: `git mv [source]/[name].md roadmap/pipeline/[name].md`
-
-3. **If your tool doesn't have a plan mode:**
-   - Just **prompt the AI to create a markdown file** based on the template in `roadmap/pipeline/[name].md`
-   - Or create markdown files manually using the template as a guide
-
-4. **Best practice**: Create plans directly in `roadmap/pipeline/` to keep everything organized
-
-**Plan Lifecycle:**
-- **Draft** → Create plan using the template (tool-specific location or `roadmap/pipeline/`)
-- **Ready** → Move to `roadmap/pipeline/` when locked and ready for implementation
-- **Complete** → Move to `roadmap/shipped/` when feature is done and tests pass
-
-See [roadmap/README.md](./roadmap/README.md) for detailed planning workflow.
+See `.specify/memory/constitution.md` for project principles and constraints.
 
 ### 🔧 Submit Code
 
 1. **Fork** the repository
 2. **Create a branch**: `git checkout -b feature/my-feature`
-3. **Plan first** (recommended): Create a plan using [`roadmap/task-plan-template.md`](./roadmap/task-plan-template.md) in `roadmap/pipeline/` or your tool's plan location
+3. **Plan first** (recommended): Use `/speckit.specify` and `/speckit.plan` to define and plan the feature
 4. **Write tests** for your changes
 5. **Make changes** following code standards
 6. **Run tests**: `npm test`
@@ -418,9 +401,10 @@ See [roadmap/README.md](./roadmap/README.md) for detailed planning workflow.
 
 ## Getting Help
 
-- **GitHub Discussions**: [Ask questions](https://github.com/concretios/markdown-for-humans/discussions)
-- **Issue Tracker**: [Report bugs](https://github.com/concretios/markdown-for-humans/issues)
-- **Email**: support@concret.io
+- **GitHub Repository**: [kamransethi/gpt-ai-markdown-editor](https://github.com/kamransethi/gpt-ai-markdown-editor)
+- **GitHub Discussions**: [Ask questions](https://github.com/kamransethi/gpt-ai-markdown-editor/discussions)
+- **Issue Tracker**: [Report bugs](https://github.com/kamransethi/gpt-ai-markdown-editor/issues)
+- **Email**: dinaranam@gmail.com
 
 ### Useful Resources
 

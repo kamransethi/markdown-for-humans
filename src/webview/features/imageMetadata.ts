@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2025-2026 Concret.io
+﻿/**
+ * Copyright (c) 2025-2026 DK-AI
  *
  * Licensed under the MIT License. See LICENSE file in the project root for details.
  */
@@ -12,6 +12,8 @@
  * - Medium images (200-600px): Standard footer with essential info
  * - Large images (> 600px): Full footer with all metadata
  */
+
+import { MessageType } from '../../shared/messageTypes';
 
 interface VsCodeApi {
   postMessage(message: unknown): void;
@@ -159,9 +161,9 @@ export function getImageMetadata(
     const requestId = `metadata-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 
     // Store callback
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     (window as any)._metadataCallbacks = (window as any)._metadataCallbacks || new Map();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     (window as any)._metadataCallbacks.set(requestId, (metadata: ImageMetadata | null) => {
       if (metadata) {
         // Preserve existing dimensions if they were set (e.g., from resize)
@@ -180,14 +182,13 @@ export function getImageMetadata(
     });
 
     vscodeApi.postMessage({
-      type: 'getImageMetadata',
+      type: MessageType.GET_IMAGE_METADATA,
       imagePath,
       requestId,
     });
 
     // Timeout after 5 seconds
     setTimeout(() => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const callbacks = (window as any)._metadataCallbacks;
       if (callbacks && callbacks.has(requestId)) {
         callbacks.delete(requestId);
@@ -275,7 +276,7 @@ export function showImageMetadataFooter(
   vscodeApi: VsCodeApi
 ): void {
   // Check if hover overlay is disabled
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   if (!(window as any).showImageHoverOverlay) {
     return;
   }

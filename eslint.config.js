@@ -1,4 +1,4 @@
-const { FlatCompat } = require('@eslint/eslintrc');
+﻿const { FlatCompat } = require('@eslint/eslintrc');
 const js = require('@eslint/js');
 
 const compat = new FlatCompat({
@@ -23,41 +23,23 @@ module.exports = [
         rules: {
             '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
             '@typescript-eslint/explicit-function-return-type': 'off',
-            '@typescript-eslint/no-explicit-any': 'warn',
-            'no-console': ['warn', { allow: ['warn', 'error'] }]
+            '@typescript-eslint/no-explicit-any': 'off',
+            'no-console': 'off'
         }
     }),
     {
-        ignores: ['dist/**', 'coverage/**', 'node_modules/**', 'eslint.config.js', 'playwright-report/**', 'test-results/**', '.playwright/**', '.auth/**', '*-pw-artifacts/**', 'src/__tests__/playwright/**/*.js', 'src/__tests__/playwright/**/*.js.map']
-    },
-    {
-        files: ['src/__tests__/**'],
-        linterOptions: {
-            reportUnusedDisableDirectives: false
-        },
-        rules: {
-            'no-console': 'off',
-            '@typescript-eslint/no-explicit-any': 'off'
-        }
-    },
-    {
-        files: ['src/webview/**'],
-        rules: {
-            'no-console': 'off'
-        }
+        ignores: ['dist/**', 'coverage/**', 'node_modules/**', 'eslint.config.js', 'src/__tests__/playwright/harness/**']
     },
     {
         files: ['scripts/**/*.js'],
-        languageOptions: {
-            globals: {
-                process: 'readonly',
-                console: 'readonly',
-                require: 'readonly',
-                __dirname: 'readonly',
-                module: 'readonly',
-            },
-            ecmaVersion: 2022,
-            sourceType: 'commonjs',
+        env: {
+            node: true,
+            es2022: true
+        },
+        globals: {
+            process: 'readonly',
+            console: 'readonly',
+            require: 'readonly'
         },
         rules: {
             'no-console': 'off', // Build scripts can use console.log

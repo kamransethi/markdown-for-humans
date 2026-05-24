@@ -1,89 +1,80 @@
-# Changelog
+﻿# Changelog
 
-All notable changes to Markdown for Humans will be documented in this file.
+All notable changes to DK-AI Markdown Editor will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
 **Note:** This is the ONLY changelog file. Use this content for GitHub releases (copy and polish as needed with emojis and user-friendly sections).
+
+## [3.0.0] - 2026-04-19
+
+### Added
+
+- Knowledge Graph beta: workspace-wide markdown indexing, backlinks, hybrid search, and AI-powered graph chat.
+- Backlinks explorer view for markdown files, with live updates as documents change.
+- Configurable graph data directory via `knowledgeGraph.dataDir`, defaulting to `~/.fluxflow` and supporting custom storage folders.
+- Support for semantic search and retrieval-augmented generation when a local AI embedding server is available.
+- Graph Chat panel for asking questions over your indexed markdown workspace.
+
+### Changed
+
+- Bumped the extension major version to 3.0.0 for a new wave of graph and editor platform features.
+- Upgraded TipTap dependencies to the 3.22.x line for improved Markdown round-tripping and table serialization.
+- Improved local configuration support with a dedicated config/data folder for graph database and vector storage.
+
+### Fixed
+
+- Stabilized table hard-break serialization across the TipTap Markdown pipeline.
+
+---
 
 ## [Unreleased]
 
 ---
 
-## [0.1.7] - 2026-04-21
-
-### Fixed
-
-- Image context menu (resize, align, copy) is now accessible even when the image hover overlay is disabled via settings. Previously, turning off `markdownForHumans.imagePreview.hover.enabled` also hid the menu button, making images uneditable.
-
----
-
-## [0.1.6] - 2026-04-20
+## [2.0.1] - 2026-03-20
 
 ### Changed
 
-- Patch version bump to resolve a marketplace re-publish. No code changes from 0.1.5.
+- Bumped release version to 2.0.1 and rebuilt the marketplace package
 
----
+## [2.0.0] - 2026-03-20
 
-## [0.1.5] - 2026-04-20
+### Launch Release
 
-### 🎯 What's New
-
-#### Document Audit Tool
-A new audit panel lets you check document quality without leaving the editor:
-- Validates all URLs and local file links for broken references
-- Auto-fix suggestions for common issues
-- Toast notifications for audit results
-- Enhanced overlay with issue navigation and a horizontal separator for clarity
-
-#### Image Overlay Controls
-New image overlay feature (contributed by @tomarsuraj13):
-- Contextual controls appear on image hover for quick resize and alignment
-- Improved image resize modal with better interaction
-- Fixed nested checkbox list rendering within image captions
-- Resolved VS Code keyboard shortcut conflicts introduced by image handling
-
-#### Code Block Improvements
-- Pastes inside code blocks now insert as raw text, preventing unwanted markdown parsing
-- Improved code context detection using TipTap state and DOM checks
-- Raw HTML source no longer auto-renders when pasted as plain text
-
-#### HTML-Preserving Tables
-- New `HtmlPreservingTable` extension maintains HTML classes when syncing tables to markdown
-
-### 🛠️ Bug Fixes
-
-- Fixed Mermaid theme loading (themes were not applying on open)
-- Fixed audit panel horizontal scrolling
-- Fixed image resize modal behavior
-- Fixed CI workflows to correctly handle fork PRs in Claude AI code review
+This is the major launch baseline for the current generation of Flux Flow Markdown Editor.
 
 ### Added
 
-- Claude AI PR review workflow via GitHub Actions (`@claude` mention trigger)
-
----
-
-## [0.1.4] - 2026-01-20
+- Flux Flow: A feature-rich visual Markdown workflow inside VS Code with strong emphasis on direct manipulation instead of syntax-first editing
+- Advanced table editing with resizing, context actions, and toolbar controls
+- Inline image management with drag and drop, resize, rename, and metadata workflows
+- Mermaid diagram support with rendering, templates, and source editing workflow
+- Rich formatting controls including highlighting, text color, headings, code, and contextual toolbar actions
+- Export workflows for PDF and DOCX
+- Outline, navigation, and writing aids for longer documents
 
 ### Changed
 
-- Updated display name to "Markdown for Humans: WYSIWYG Editor" for better brand clarity and search ranking
-- Expanded keywords from 6 to 30 terms for improved marketplace discoverability
-- Updated marketplace description to highlight key features for SEO
+- Repositioned the extension on a new major version line to reflect the expanded feature set and launch readiness
+- Rewrote the README to make the feature set easier to scan for users evaluating the extension
 
----
+### Fixed
+
+- Documentation and repository support links now point to the current project repository and help channels
 
 ## [0.1.3] - 2026-01-16
 
 ### 🎯 What's New
 
 #### Critical Bug Fix
-**Fixed Auto-Linking Bug:** Previously, typing text ending with file extensions (like `.md`, `.txt`, `.pdf`) would automatically convert them into links. This has been fixed. File extensions now remain as plain text, giving you complete control over when text becomes a link.
+
+**Fixed Auto-Linking Bug** — Previously, typing text ending with file extensions (like `.md`, `.txt`, `.pdf`) would automatically convert them into links. This has been fixed! File extensions now remain as plain text, giving you complete control over when text becomes a link.
 
 #### Enhanced Link Creation Experience
-**Completely Redesigned Link Dialog:** Creating links is now faster and more intuitive:
+
+**Completely Redesigned Link Dialog** — Creating links is now faster and more intuitive:
+
 - **Three Link Modes**: Switch between URL, File, and Headings with radio buttons positioned right after the Link Text input
 - **Smart File Search**: Type to search workspace files with fuzzy matching and category filters (Markdown, Images, Code, Config)
 - **In-Document Headings**: Instantly link to any heading (H1-H6) within your current document
@@ -91,12 +82,14 @@ New image overlay feature (contributed by @tomarsuraj13):
 - **Better Navigation**: Fixed image and file link clicking - images now open in VS Code's preview, files open correctly in both development and packaged builds
 
 #### Documentation & Discovery
-- **Enhanced README:** Added comparison table showing how Markdown for Humans differs from other markdown editors
-- **Improved Marketplace Listing:** Better keywords and descriptions to help users discover the extension more easily
+
+- **Enhanced README** — Added comparison table showing how DK-AI Markdown Editor differs from other markdown editors
+- **Improved Marketplace Listing** — Better keywords and descriptions to help users discover the extension more easily
 
 ### 🛠️ Technical Improvements
 
 This release includes several under-the-hood improvements that make the extension more stable and reliable:
+
 - Enhanced test coverage for better reliability
 - Improved CI/CD pipeline for faster packaging
 - Code quality improvements
@@ -118,7 +111,7 @@ This release includes several under-the-hood improvements that make the extensio
 ### Added
 
 - Added shouldAutoLink validation utility to prevent unwanted auto-linking of file extensions and bare filenames
-- Added comprehensive test suite for link autolink prevention (src/__tests__/webview/linkAutolink.test.ts)
+- Added comprehensive test suite for link autolink prevention (src/**tests**/webview/linkAutolink.test.ts)
 - Added pre-commit hook that automatically runs npm run lint:fix before each commit
 - Added enhanced test setup files (setup-after-env.ts) for improved test reliability
 - Added GitHub Actions workflow for automated package creation on push to main branch
@@ -133,7 +126,7 @@ This release includes several under-the-hood improvements that make the extensio
 
 ### Changed
 
-- Enhanced marketplace discoverability: Updated displayName to "Markdown for Humans: WYSIWYG Editor" to improve brand clarity while maintaining search ranking for "markdown editor" and "wysiwyg markdown" queries
+- Enhanced marketplace discoverability: Updated displayName to "DK-AI Markdown Editor: WYSIWYG Editor" to improve brand clarity while maintaining search ranking for "markdown editor" and "wysiwyg markdown" queries
 - Expanded keywords from 6 to 30 terms for better marketplace visibility (includes: notion-like, writing, documentation, formatting, syntax-highlighting, live-preview, full-screen, distraction-free, cover-images, image-resizing, export, html, pdf, docx, human-friendly, and more)
 - Updated package.json description to SEO-optimized version highlighting key features
 - Restructured README with comparison table ("What Makes It Different") and improved SEO positioning
@@ -201,10 +194,3 @@ This release includes several under-the-hood improvements that make the extensio
 - Fixed image path resolution for URL-encoded paths
 
 ---
-
-[Unreleased]: https://github.com/concretios/markdown-for-humans/compare/v0.1.6...HEAD
-[0.1.6]: https://github.com/concretios/markdown-for-humans/compare/v0.1.5...v0.1.6
-[0.1.5]: https://github.com/concretios/markdown-for-humans/compare/v0.1.4...v0.1.5
-[0.1.4]: https://github.com/concretios/markdown-for-humans/compare/v0.1.3...v0.1.4
-[0.1.3]: https://github.com/concretios/markdown-for-humans/compare/v0.1.0...v0.1.3
-[0.1.0]: https://github.com/concretios/markdown-for-humans/releases/tag/v0.1.0

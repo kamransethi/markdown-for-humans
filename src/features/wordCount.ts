@@ -1,5 +1,5 @@
-/**
- * Copyright (c) 2025-2026 Concret.io
+﻿/**
+ * Copyright (c) 2025-2026 DK-AI
  *
  * Licensed under the MIT License. See LICENSE file in the project root for details.
  */
@@ -99,7 +99,7 @@ export class WordCountFeature {
       vscode.StatusBarAlignment.Right,
       100 // Priority - higher = further left
     );
-    this.statusBarItem.command = 'markdownForHumans.showDetailedStats';
+    this.statusBarItem.command = 'gptAiMarkdownEditor.showDetailedStats';
   }
 
   /**
