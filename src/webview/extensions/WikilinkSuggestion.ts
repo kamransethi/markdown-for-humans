@@ -71,7 +71,7 @@ function renderDropdown(
   el.innerHTML = '';
   items.forEach((note, idx) => {
     const item = document.createElement('div');
-    const isCreate = note.identifier === CREATE_SENTINEL;
+    const isCreate = note.title.startsWith('Create:');
     item.className = [
       'wikilink-suggestion__item',
       isCreate ? 'wikilink-suggestion__create' : '',

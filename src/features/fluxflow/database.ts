@@ -215,6 +215,17 @@ export class GraphDatabase {
     return rows[0].values[0][0] as number;
   }
 
+  getAllDocuments(): Array<{ id: number; path: string; title: string }> {
+    if (!this.db) return [];
+    const rows = this.db.exec('SELECT id, path, title FROM documents ORDER BY path ASC');
+    if (!rows.length) return [];
+    return rows[0].values.map((row: unknown[]) => ({
+      id: row[0] as number,
+      path: row[1] as string,
+      title: row[2] as string,
+    }));
+  }
+
   getDbPath(): string {
     return this.dbPath;
   }

@@ -113,22 +113,25 @@ export function activate(context: vscode.ExtensionContext) {
     });
   }
 
+  // Always initialize the wikilink indexer (not gated on KG flag)
+  FluxFlowGraph.initializeForWikilinks(context)
+    .then(() => {
+      // Wire change notifications so open webviews receive updated note lists
+      foamIntegration.connect();
+      console.log('[Wikilinks] Note index ready');
+    })
+    .catch(err => {
+      console.error('[Wikilinks] Failed to initialize wikilink index:', err);
+    });
+
   // Initialize Word Count feature
   const wordCount = new WordCountFeature();
   wordCount.activate(context);
 
-  // Connect to Foam extension for wikilinks support
-  void foamIntegration.connect();
-
-  // Register wikilinks show-in-graph command
+  // Register wikilinks show-in-graph command (no-op if KG not active)
   context.subscriptions.push(
     vscode.commands.registerCommand('gptAiMarkdownEditor.showInGraph', async () => {
-      const uri = getActiveDocumentUri();
-      if (!uri) {
-        vscode.window.showInformationMessage('Cannot determine current file.');
-        return;
-      }
-      await foamIntegration.showInGraph(uri);
+      vscode.window.showInformationMessage('Knowledge Graph view not active.');
     })
   );
 

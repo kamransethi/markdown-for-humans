@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Wikilinks Test Harness</title>
+  <style>
+    /* ---- Base ---- */
+    :root {
+      --md-link-fg: #1a73e8;
+      --md-link-active-fg: #1557b0;
+      --md-muted: #9aa0a6;
+      --vscode-errorForeground: #ea4335;
+    }
+
+    body {
+      font-family: system-ui, sans-serif;
+      margin: 20px;
+      background: #fff;
+      color: #1a1a1a;
+    }
+
+    #editor {
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      padding: 12px;
+      min-height: 200px;
+      outline: none;
+      line-height: 1.6;
+    }
+
+    .ProseMirror {
+      outline: none;
+      min-height: 180px;
+    }
+
+    /* ---- Wikilink states ---- */
+    .wikilink {
+      display: inline;
+      border-radius: 3px;
+      padding: 0 2px;
+      font-family: inherit;
+      font-size: inherit;
+      line-height: inherit;
+      white-space: nowrap;
+      user-select: none;
+    }
+
+    .wikilink--valid {
+      color: var(--md-link-fg);
+      text-decoration: underline;
+      text-decoration-style: solid;
+      text-underline-offset: 2px;
+      cursor: pointer;
+    }
+
+    .wikilink--valid:hover {
+      color: var(--md-link-active-fg);
+      background: rgba(26, 115, 232, 0.08);
+    }
+
+    .wikilink--broken {
+      color: var(--vscode-errorForeground, #ea4335);
+      text-decoration: underline;
+      text-decoration-style: dashed;
+      text-underline-offset: 2px;
+      cursor: default;
+      opacity: 0.8;
+    }
+
+    .wikilink--broken:hover {
+      background: rgba(234, 67, 53, 0.08);
+    }
+
+    .wikilink--loading {
+      color: var(--md-muted);
+      opacity: 0.6;
+      cursor: default;
+      text-decoration: none;
+    }
+
+    /* ---- Suggestion dropdown ---- */
+    .wikilink-suggestion {
+      position: fixed;
+      z-index: 9999;
+      background: #fff;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+      min-width: 240px;
+      max-width: 400px;
+      max-height: 300px;
+      overflow-y: auto;
+      padding: 4px 0;
+      font-family: inherit;
+      font-size: 13px;
+    }
+
+    .wikilink-suggestion__item {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 12px;
+      padding: 6px 12px;
+      cursor: pointer;
+      color: #1a1a1a;
+    }
+
+    .wikilink-suggestion__item:hover,
+    .wikilink-suggestion__item.selected {
+      background: rgba(0, 0, 0, 0.06);
+    }
+
+    .wikilink-suggestion__title {
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .wikilink-suggestion__id {
+      font-size: 11px;
+      opacity: 0.6;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .wikilink-suggestion__empty {
+      padding: 8px 12px;
+      color: #666;
+      font-style: italic;
+    }
+
+    .wikilink-suggestion__create {
+      color: var(--md-link-fg);
+      font-style: italic;
+    }
+
+    /* ---- Preview tooltip ---- */
+    .wikilink-preview-tooltip {
+      position: fixed;
+      z-index: 10000;
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      box-shadow: 0 6px 24px rgba(0, 0, 0, 0.15);
+      max-width: 420px;
+      min-width: 200px;
+      padding: 10px 14px;
+      font-size: 13px;
+      pointer-events: none;
+    }
+
+    .wikilink-preview-tooltip__title {
+      font-weight: 600;
+      margin-bottom: 6px;
+      color: var(--md-link-fg);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .wikilink-preview-tooltip__body {
+      font-family: inherit;
+      font-size: 12px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-word;
+      margin: 0;
+      opacity: 0.85;
+      max-height: 180px;
+      overflow: hidden;
+    }
+
+    .wikilink-preview-tooltip--broken {
+      border-color: rgba(234, 67, 53, 0.4);
+    }
+
+    .wikilink-preview-tooltip__broken {
+      color: #ea4335;
+      font-style: italic;
+    }
+
+    .wikilink-preview-tooltip__create {
+      display: block;
+      margin-top: 6px;
+      padding: 2px 0;
+      background: none;
+      border: none;
+      color: var(--md-link-fg);
+      font-size: 12px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    #status {
+      margin-top: 8px;
+      font-size: 12px;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+  <div id="editor"></div>
+  <div id="status">Loading...</div>
+  <script src="wikilinks-harness.js"></script>
+  <script>
+    // Signal ready once harness init runs
+    const readyPoll = setInterval(() => {
+      if (window.editorAPI && window.editorAPI.isReady()) {
+        clearInterval(readyPoll);
+        document.getElementById('status').textContent = 'Editor ready';
+      }
+    }, 50);
+  </script>
+</body>
+</html>

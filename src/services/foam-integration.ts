@@ -1,136 +1,81 @@
 import * as vscode from 'vscode';
-import type { Uri } from 'vscode';
+import {
+  getWikilinkDocuments,
+  resolveWikilinkPath,
+  onWikilinkIndexChange,
+} from '../features/fluxflow/index';
 
 export interface WikilinkNote {
-  identifier: string; // shortest unambiguous id
+  identifier: string; // shortest unambiguous id (filename stem)
   title: string; // first H1 or filename
   fsPath: string; // full path
-  aliases: string[]; // frontmatter aliases
-  sections: { label: string; level: number }[];
+  aliases: string[]; // frontmatter aliases (always [] for now)
+  sections: { label: string; level: number }[]; // headings (always [] for now)
 }
 
 type DidChangeCallback = () => void;
 
 /**
- * FoamIntegrationService
+ * WikilinkNoteIndexService
  *
- * Singleton service that connects to the installed Foam VS Code extension
- * to provide wikilink note index, resolution, and graph navigation.
- *
- * Requires Foam v0.40.4+ with selectNoteInGraph command.
+ * Singleton service backed by FluxFlow's local markdown index.
+ * Provides wikilink note index, resolution, and workspace-scoped queries.
+ * Zero dependency on the external Foam extension.
  */
-class FoamIntegrationService {
-  private static instance: FoamIntegrationService;
-  private connected = false;
-  private noteIndex: WikilinkNote[] = [];
+class WikilinkNoteIndexService {
+  private static instance: WikilinkNoteIndexService;
   private changeCallbacks: DidChangeCallback[] = [];
 
-  static getInstance(): FoamIntegrationService {
-    if (!FoamIntegrationService.instance) {
-      FoamIntegrationService.instance = new FoamIntegrationService();
+  static getInstance(): WikilinkNoteIndexService {
+    if (!WikilinkNoteIndexService.instance) {
+      WikilinkNoteIndexService.instance = new WikilinkNoteIndexService();
     }
-    return FoamIntegrationService.instance;
+    return WikilinkNoteIndexService.instance;
   }
 
   /**
-   * Connect to Foam extension and listen for workspace changes
+   * Wire up change notifications from FluxFlow wikilink index.
+   * Call once from extension.ts after initializeForWikilinks().
    */
-  async connect(): Promise<void> {
-    if (this.connected) return;
+  connect(): void {
+    onWikilinkIndexChange(() => this.notifyChange());
+  }
 
-    try {
-      // Activate Foam extension
-      const foam = vscode.extensions.getExtension('foam.foam-vscode');
-      if (!foam) {
-        console.warn(
-          '[wikilinks] Foam extension not found. Install foam-vscode to enable wikilinks.'
-        );
-        return;
-      }
-
-      if (!foam.isActive) {
-        await foam.activate();
-      }
-
-      // Export expected to be available from Foam's extension context
-      const foamExports = foam.exports as { noteIndex?: WikilinkNote[] };
-      if (foamExports?.noteIndex) {
-        this.noteIndex = foamExports.noteIndex;
-        this.connected = true;
-        console.log(`[wikilinks] Connected to Foam. Loaded ${this.noteIndex.length} notes.`);
-      } else {
-        console.warn('[wikilinks] Foam extension does not export noteIndex.');
-      }
-
-      // Listen for Foam workspace changes via a custom event or polling
-      // For now, we'll use a simple interval check
-      this.setupChangeListener();
-    } catch (err) {
-      console.error('[wikilinks] Failed to connect to Foam:', err);
+  /**
+   * Get all notes in the workspace. When a document URI is supplied,
+   * returns only notes belonging to the same workspace folder.
+   */
+  getNoteList(documentUri?: vscode.Uri): WikilinkNote[] {
+    let workspacePath: string | undefined;
+    if (documentUri) {
+      workspacePath = vscode.workspace.getWorkspaceFolder(documentUri)?.uri.fsPath;
     }
-  }
-
-  private setupChangeListener(): void {
-    // Listen to Foam's onDidChange event if available via extension exports
-    // Fallback: poll Foam API periodically for changes
-    const checkInterval = setInterval(() => {
-      const foam = vscode.extensions.getExtension('foam.foam-vscode');
-      if (!foam || !foam.isActive) {
-        clearInterval(checkInterval);
-        return;
-      }
-
-      const foamExports = foam.exports as { noteIndex?: WikilinkNote[] };
-      if (foamExports?.noteIndex && foamExports.noteIndex !== this.noteIndex) {
-        this.noteIndex = foamExports.noteIndex;
-        this.notifyChange();
-      }
-    }, 2000); // Poll every 2 seconds
+    return getWikilinkDocuments(workspacePath).map(doc => ({
+      identifier: doc.identifier,
+      title: doc.title,
+      fsPath: doc.fsPath,
+      aliases: [],
+      sections: [],
+    }));
   }
 
   /**
-   * Get the full list of notes currently indexed by Foam
+   * Resolve a [[identifier]] to a file URI, optionally scoped to a workspace folder.
    */
-  getNoteList(): WikilinkNote[] {
-    return this.noteIndex;
+  resolveWikilinkUri(identifier: string, documentUri?: vscode.Uri): vscode.Uri | undefined {
+    const workspacePath = documentUri
+      ? vscode.workspace.getWorkspaceFolder(documentUri)?.uri.fsPath
+      : undefined;
+
+    // Strip anchor reference: [[notes#heading]] → "notes"
+    const bareIdentifier = identifier.split('#')[0].trim();
+
+    const fsPath = resolveWikilinkPath(bareIdentifier, workspacePath);
+    return fsPath ? vscode.Uri.file(fsPath) : undefined;
   }
 
   /**
-   * Find and open a note in Foam's graph view
-   */
-  async showInGraph(uri: Uri): Promise<void> {
-    try {
-      await vscode.commands.executeCommand('foam-vscode.selectNoteInGraph', uri);
-    } catch (err) {
-      console.warn('[wikilinks] Could not show note in graph:', err);
-    }
-  }
-
-  /**
-   * Resolve a wikilink identifier to a file URI
-   */
-  resolveWikilinkUri(identifier: string): Uri | undefined {
-    const note = this.noteIndex.find(
-      n =>
-        n.identifier.toLowerCase() === identifier.toLowerCase() ||
-        n.aliases.some(a => a.toLowerCase() === identifier.toLowerCase())
-    );
-    return note ? Uri.file(note.fsPath) : undefined;
-  }
-
-  /**
-   * Get backlinks for a given note URI
-   */
-  getBacklinks(_uri: Uri): WikilinkNote[] {
-    return this.noteIndex.filter(_note => {
-      // In a real implementation, check foam's link graph
-      // For now, return empty array
-      return false;
-    });
-  }
-
-  /**
-   * Register a callback for when Foam workspace changes
+   * Register a callback for when the note index changes.
    */
   onDidChange(callback: DidChangeCallback): vscode.Disposable {
     this.changeCallbacks.push(callback);
@@ -149,4 +94,4 @@ class FoamIntegrationService {
   }
 }
 
-export const foamIntegration = FoamIntegrationService.getInstance();
+export const foamIntegration = WikilinkNoteIndexService.getInstance();

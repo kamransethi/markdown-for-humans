@@ -1368,7 +1368,7 @@ body[data-theme="dark"] .github-alert {
 }
 
 .wikilink--broken {
-  color: #ea4335;
+  color: var(--vscode-errorForeground, #ea4335);
   text-decoration: underline;
   text-decoration-style: dashed;
   text-underline-offset: 2px;
@@ -1378,6 +1378,13 @@ body[data-theme="dark"] .github-alert {
 
 .wikilink--broken:hover {
   background: rgba(234, 67, 53, 0.08);
+}
+
+.wikilink--loading {
+  color: var(--md-muted);
+  opacity: 0.6;
+  cursor: default;
+  text-decoration: none;
 }
 
 /* Wikilink autocomplete dropdown */

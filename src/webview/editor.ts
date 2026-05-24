@@ -26,7 +26,7 @@ import DragHandle from '@tiptap/extension-drag-handle';
 import Gapcursor from '@tiptap/extension-gapcursor';
 import { marked as markedInstance, Marked } from 'marked';
 import { CustomImage } from './extensions/customImage';
-import { WikilinkNode, setWikilinkNoteIndex } from './extensions/WikilinkNode';
+import { WikilinkNode, setWikilinkNoteIndex, setWikilinkTitleMap } from './extensions/WikilinkNode';
 import { WikilinkSuggestion, setWikilinkSuggestionNotes } from './extensions/WikilinkSuggestion';
 import type { WikilinkNote } from '../services/foam-integration';
 import { CodeBlockWithUi } from './extensions/codeBlockShikiWithUi';
@@ -1854,6 +1854,14 @@ window.addEventListener('message', (event: MessageEvent) => {
         if (Array.isArray(notes)) {
           setWikilinkSuggestionNotes(notes);
           setWikilinkNoteIndex(notes.map(n => n.identifier));
+          // Build title map so NodeViews can show resolved titles
+          const titleMap = new Map<string, string>();
+          for (const note of notes) {
+            titleMap.set(note.identifier.toLowerCase(), note.title || note.identifier);
+          }
+          setWikilinkTitleMap(titleMap);
+          // Also expose on window for tooltip renderer
+          (window as unknown as Record<string, unknown>).__wikilinkTitleMap = titleMap;
         }
         break;
       }
@@ -1864,28 +1872,61 @@ window.addEventListener('message', (event: MessageEvent) => {
           broken: boolean;
         };
         // Only show if the user is still hovering the same link
-        const hoverId = (window as unknown as Record<string, unknown>).__wikilinkHoverId;
+        const win = window as unknown as Record<string, unknown>;
+        const hoverId = win.__wikilinkHoverId;
         if (hoverId !== identifier) break;
         // Remove stale tooltip
         document.getElementById('wikilink-preview-tooltip')?.remove();
-        const rect = (window as unknown as Record<string, unknown>).__wikilinkHoverRect as
-          | DOMRect
-          | undefined;
+        const rect = win.__wikilinkHoverRect as DOMRect | undefined;
         if (!rect) break;
         const tooltip = document.createElement('div');
         tooltip.id = 'wikilink-preview-tooltip';
         tooltip.className = broken
           ? 'wikilink-preview-tooltip wikilink-preview-tooltip--broken'
           : 'wikilink-preview-tooltip';
+        // Resolved display title
+        const displayTitle =
+          (win.__wikilinkTitleMap as Map<string, string>)?.get(identifier.toLowerCase()) ||
+          identifier;
         if (broken || !excerpt) {
-          tooltip.innerHTML = `<span class="wikilink-preview-tooltip__broken">Note not found: [[${identifier}]]</span>`;
+          tooltip.innerHTML =
+            `<span class="wikilink-preview-tooltip__broken">Note not found: ${displayTitle}</span>` +
+            `<button class="wikilink-preview-tooltip__create" data-id="${identifier}">Create page</button>`;
         } else {
-          // Escape HTML entities for safe text rendering
           const safe = excerpt.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-          tooltip.innerHTML = `<div class="wikilink-preview-tooltip__title">${identifier}</div><pre class="wikilink-preview-tooltip__body">${safe}</pre>`;
+          tooltip.innerHTML =
+            `<div class="wikilink-preview-tooltip__title">${displayTitle}</div>` +
+            `<pre class="wikilink-preview-tooltip__body">${safe}</pre>`;
         }
         tooltip.style.left = `${rect.left}px`;
         tooltip.style.top = `${rect.bottom + 6}px`;
+        // Sticky: cancel pending dismiss when mouse enters tooltip
+        tooltip.addEventListener('mouseenter', () => {
+          const dismissTimer = win.__wikilinkDismissTimer as ReturnType<typeof setTimeout> | null;
+          if (dismissTimer) {
+            clearTimeout(dismissTimer);
+            win.__wikilinkDismissTimer = null;
+          }
+        });
+        tooltip.addEventListener('mouseleave', () => {
+          win.__wikilinkDismissTimer = setTimeout(() => {
+            tooltip.remove();
+            win.__wikilinkDismissTimer = null;
+          }, 200);
+        });
+        // Create page button
+        tooltip.addEventListener('click', e => {
+          const btn = (e.target as HTMLElement).closest<HTMLElement>(
+            '.wikilink-preview-tooltip__create'
+          );
+          if (btn) {
+            const id = btn.dataset.id ?? identifier;
+            const api = (window as unknown as { vscode?: { postMessage: (m: unknown) => void } })
+              .vscode;
+            api?.postMessage({ type: 'createWikilink', identifier: id });
+            tooltip.remove();
+          }
+        });
         document.body.appendChild(tooltip);
         break;
       }

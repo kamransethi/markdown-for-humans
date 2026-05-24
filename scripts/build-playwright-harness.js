@@ -17,10 +17,8 @@ const path = require('path');
 
 const isWatch = process.argv.includes('--watch');
 
-const buildOptions = {
-  entryPoints: [path.resolve(__dirname, '../src/__tests__/playwright/harness/editor-harness.ts')],
+const sharedOptions = {
   bundle: true,
-  outfile: path.resolve(__dirname, '../src/__tests__/playwright/harness/editor-harness.js'),
   format: 'iife',
   platform: 'browser',
   sourcemap: true,
@@ -36,14 +34,34 @@ const buildOptions = {
   ],
 };
 
+const entries = [
+  {
+    entryPoints: [path.resolve(__dirname, '../src/__tests__/playwright/harness/editor-harness.ts')],
+    outfile: path.resolve(__dirname, '../src/__tests__/playwright/harness/editor-harness.js'),
+    label: 'editor-harness',
+  },
+  {
+    entryPoints: [path.resolve(__dirname, '../src/__tests__/playwright/harness/wikilinks-harness.ts')],
+    outfile: path.resolve(__dirname, '../src/__tests__/playwright/harness/wikilinks-harness.js'),
+    label: 'wikilinks-harness',
+  },
+];
+
 async function run() {
   if (isWatch) {
-    const ctx = await esbuild.context(buildOptions);
-    await ctx.watch();
-    console.log('Watching harness for changes...');
+    const ctxs = await Promise.all(
+      entries.map(e => esbuild.context({ ...sharedOptions, ...e, label: undefined }))
+    );
+    await Promise.all(ctxs.map(ctx => ctx.watch()));
+    console.log('Watching all harnesses for changes...');
   } else {
-    await esbuild.build(buildOptions);
-    console.log('✅ Playwright harness built');
+    await Promise.all(
+      entries.map(async e => {
+        const { label, ...opts } = e;
+        await esbuild.build({ ...sharedOptions, ...opts });
+        console.log(`✅ ${label} built`);
+      })
+    );
   }
 }
 

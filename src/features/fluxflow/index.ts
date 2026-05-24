@@ -30,6 +30,201 @@ let embeddingErrorFull: string | null = null;
 let currentWorkspacePath: string | null = null;
 let disposables: vscode.Disposable[] = [];
 
+// ---- Wikilink multi-root index (always-on, independent of KG flag) ----
+const wikilinkDatabases = new Map<string, GraphDatabase>();
+const wikilinkChangeCallbacks: Array<() => void> = [];
+
+export interface WikilinkDocument {
+  identifier: string; // filename stem (e.g. "notes" for "notes.md")
+  title: string;
+  fsPath: string; // absolute path
+  workspacePath: string;
+}
+
+function notifyWikilinkChange(): void {
+  for (const cb of wikilinkChangeCallbacks) {
+    cb();
+  }
+}
+
+async function indexMarkdownFileForWikilinks(
+  db: GraphDatabase,
+  workspacePath: string,
+  fsPath: string
+): Promise<void> {
+  try {
+    const content = await fs.promises.readFile(fsPath, 'utf-8');
+    const relPath = path.relative(workspacePath, fsPath).split(path.sep).join('/');
+    const parsed = parseDocumentFile(content, relPath);
+    db.upsertDocument(relPath, parsed.title, '');
+  } catch {
+    // Skip unreadable files
+  }
+}
+
+async function indexAllMarkdownForWikilinks(
+  workspacePath: string,
+  db: GraphDatabase
+): Promise<void> {
+  const mdFiles = await vscode.workspace.findFiles(
+    new vscode.RelativePattern(workspacePath, '**/*.md'),
+    '**/node_modules/**'
+  );
+  for (const fileUri of mdFiles) {
+    await indexMarkdownFileForWikilinks(db, workspacePath, fileUri.fsPath);
+  }
+  db.saveNow();
+}
+
+async function openWikilinkFolder(workspacePath: string): Promise<void> {
+  // Re-use existing KG database if already open for this workspace
+  if (currentWorkspacePath === workspacePath && database) {
+    wikilinkDatabases.set(workspacePath, database);
+    return;
+  }
+  if (wikilinkDatabases.has(workspacePath)) {
+    return; // already open
+  }
+  const db = new GraphDatabase();
+  await db.open(workspacePath);
+  wikilinkDatabases.set(workspacePath, db);
+  await indexAllMarkdownForWikilinks(workspacePath, db);
+}
+
+/**
+ * Initialize the always-on wikilink indexer for all workspace folders.
+ * Call from extension.ts activate() unconditionally (not gated on KG flag).
+ */
+export async function initializeForWikilinks(context: vscode.ExtensionContext): Promise<void> {
+  const folders = vscode.workspace.workspaceFolders ?? [];
+  for (const folder of folders) {
+    await openWikilinkFolder(folder.uri.fsPath);
+  }
+
+  // Track workspace folder additions/removals
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeWorkspaceFolders(async event => {
+      for (const folder of event.added) {
+        await openWikilinkFolder(folder.uri.fsPath);
+        notifyWikilinkChange();
+      }
+      for (const folder of event.removed) {
+        const fp = folder.uri.fsPath;
+        const db = wikilinkDatabases.get(fp);
+        // Only close if not the shared KG database
+        if (db && db !== database) {
+          db.close();
+        }
+        wikilinkDatabases.delete(fp);
+        notifyWikilinkChange();
+      }
+    })
+  );
+
+  // Always-on file watcher for .md files — re-index on change/create/delete
+  const mdWatcher = vscode.workspace.createFileSystemWatcher('**/*.md');
+  context.subscriptions.push(mdWatcher);
+
+  const handleUpsert = async (uri: vscode.Uri): Promise<void> => {
+    const folder = vscode.workspace.getWorkspaceFolder(uri);
+    if (!folder) return;
+    const db = wikilinkDatabases.get(folder.uri.fsPath);
+    if (!db) return;
+    await indexMarkdownFileForWikilinks(db, folder.uri.fsPath, uri.fsPath);
+    notifyWikilinkChange();
+  };
+
+  const handleDelete = (uri: vscode.Uri): void => {
+    const folder = vscode.workspace.getWorkspaceFolder(uri);
+    if (!folder) return;
+    const db = wikilinkDatabases.get(folder.uri.fsPath);
+    if (!db) return;
+    const relPath = path.relative(folder.uri.fsPath, uri.fsPath).split(path.sep).join('/');
+    db.deleteDocument(relPath);
+    notifyWikilinkChange();
+  };
+
+  context.subscriptions.push(
+    mdWatcher.onDidChange(uri => void handleUpsert(uri)),
+    mdWatcher.onDidCreate(uri => void handleUpsert(uri)),
+    mdWatcher.onDidDelete(handleDelete)
+  );
+}
+
+/** Get all wikilink documents for a workspace folder (or all folders if omitted). */
+export function getWikilinkDocuments(workspacePath?: string): WikilinkDocument[] {
+  const toProcess: Array<[string, GraphDatabase]> = workspacePath
+    ? (
+        [[workspacePath, wikilinkDatabases.get(workspacePath)!]] as Array<
+          [string, GraphDatabase | undefined]
+        >
+      ).filter((pair): pair is [string, GraphDatabase] => !!pair[1])
+    : Array.from(wikilinkDatabases.entries());
+
+  const docs: WikilinkDocument[] = [];
+  for (const [folder, db] of toProcess) {
+    for (const row of db.getAllDocuments()) {
+      const stem = row.path.replace(/\.md$/, '');
+      // Use just the filename as identifier if unambiguous, else use relative path
+      const identifier = path.basename(stem);
+      docs.push({
+        identifier,
+        title: row.title || identifier,
+        fsPath: path.join(folder, row.path),
+        workspacePath: folder,
+      });
+    }
+  }
+  return docs;
+}
+
+/** Resolve a [[identifier]] to an absolute file path within a workspace folder. */
+export function resolveWikilinkPath(
+  identifier: string,
+  workspacePath?: string
+): string | undefined {
+  const foldersToSearch: Array<[string, GraphDatabase]> = workspacePath
+    ? (
+        [[workspacePath, wikilinkDatabases.get(workspacePath)!]] as Array<
+          [string, GraphDatabase | undefined]
+        >
+      ).filter((pair): pair is [string, GraphDatabase] => !!pair[1])
+    : Array.from(wikilinkDatabases.entries());
+
+  const lower = identifier.toLowerCase();
+
+  for (const [folder, db] of foldersToSearch) {
+    const docs = db.getAllDocuments();
+    // Try exact stem match first, then basename match
+    const match =
+      docs.find(doc => {
+        const stem = doc.path.replace(/\.md$/, '').toLowerCase();
+        return stem === lower;
+      }) ??
+      docs.find(doc => {
+        const basename = path.basename(doc.path.replace(/\.md$/, '')).toLowerCase();
+        return basename === lower;
+      });
+    if (match) {
+      return path.join(folder, match.path);
+    }
+  }
+  return undefined;
+}
+
+/** Subscribe to wikilink index changes (file created/modified/deleted). */
+export function onWikilinkIndexChange(callback: () => void): vscode.Disposable {
+  wikilinkChangeCallbacks.push(callback);
+  return {
+    dispose: () => {
+      const idx = wikilinkChangeCallbacks.indexOf(callback);
+      if (idx !== -1) {
+        wikilinkChangeCallbacks.splice(idx, 1);
+      }
+    },
+  };
+}
+
 /** Live progress state — updated during indexing and embedding phases. */
 const progressState = {
   phase: 'idle' as 'idle' | 'indexing' | 'embedding' | 'ready',
@@ -134,6 +329,10 @@ export async function initialize(_context: vscode.ExtensionContext): Promise<voi
   // 1. Open database
   database = new GraphDatabase();
   await database.open(workspacePath);
+
+  // Register the KG database in the wikilink databases map so
+  // initializeForWikilinks() can re-use it instead of opening a duplicate.
+  wikilinkDatabases.set(workspacePath, database);
 
   // 2. Register Backlinks TreeView
   backlinksView = new BacklinksViewProvider(
@@ -538,6 +737,15 @@ export function deactivate(): void {
   embeddingEngine = null;
   database?.close();
   database = null;
+
+  // Close wikilink databases that are not shared with KG database
+  for (const [, db] of wikilinkDatabases) {
+    if (db !== database) {
+      db.close();
+    }
+  }
+  wikilinkDatabases.clear();
+  wikilinkChangeCallbacks.length = 0;
 }
 
 export function getGraphCallbacks(): {

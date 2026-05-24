@@ -374,11 +374,20 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
       }
     });
 
+    // Push live wikilink index updates when the note index changes
+    const wikilinkIndexDisposable = foamIntegration.onDidChange(() => {
+      if (webviewPanel.visible) {
+        const updatedNotes = foamIntegration.getNoteList(document.uri);
+        void webviewPanel.webview.postMessage({ type: 'noteIndex', notes: updatedNotes });
+      }
+    });
+
     // Cleanup
     webviewPanel.onDidDispose(() => {
       changeDocumentSubscription.dispose();
       saveDocumentSubscription.dispose();
       configChangeSubscription.dispose();
+      wikilinkIndexDisposable.dispose();
       // Clean up pending edits tracking for this document
       this.sync.cleanup(document.uri.toString());
       if (getActiveWebviewPanel() === webviewPanel) {
@@ -485,11 +494,9 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
           ...settings,
         });
 
-        // Push Foam note index if available (for wikilinks)
-        const notes = foamIntegration.getNoteList();
-        if (notes.length > 0) {
-          webview.postMessage({ type: 'noteIndex', notes });
-        }
+        // Push wikilink note index scoped to this document's workspace folder
+        const notes = foamIntegration.getNoteList(document.uri);
+        webview.postMessage({ type: 'noteIndex', notes });
         break;
       }
       case MessageType.OUTLINE_UPDATED: {
@@ -589,7 +596,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
 
       case 'openWikilink': {
         const identifier = message.identifier as string;
-        const uri = foamIntegration.resolveWikilinkUri(identifier);
+        const uri = foamIntegration.resolveWikilinkUri(identifier, document.uri);
         if (!uri) {
           vscode.window.showInformationMessage(`Note "${identifier}" not found`);
           return;
@@ -600,7 +607,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
 
       case 'getWikilinkPreview': {
         const identifier = message.identifier as string;
-        const uri = foamIntegration.resolveWikilinkUri(identifier);
+        const uri = foamIntegration.resolveWikilinkUri(identifier, document.uri);
         if (!uri) {
           void webview.postMessage({
             type: 'wikilinkPreview',
@@ -623,6 +630,28 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
             broken: true,
           });
         }
+        break;
+      }
+
+      case 'createWikilink': {
+        // Create a new .md file in the same directory as the current document
+        const newIdentifier = (message.identifier as string) || 'untitled';
+        const docDir =
+          document.uri.scheme === 'file'
+            ? path.dirname(document.uri.fsPath)
+            : (vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? '');
+        if (!docDir) break;
+        const newFilePath = path.join(docDir, `${newIdentifier}.md`);
+        const newFileUri = vscode.Uri.file(newFilePath);
+        // Create the file if it doesn't exist
+        try {
+          await vscode.workspace.fs.stat(newFileUri);
+        } catch {
+          // File doesn't exist — create it with a heading
+          const content = Buffer.from(`# ${newIdentifier}\n`);
+          await vscode.workspace.fs.writeFile(newFileUri, content);
+        }
+        await vscode.commands.executeCommand('vscode.openWith', newFileUri, 'gptAiMarkdownEditor');
         break;
       }
     }
