@@ -16,7 +16,7 @@ import { ListKit } from '@tiptap/extension-list';
 import Link from '@tiptap/extension-link';
 import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
 import { CustomImage } from './extensions/customImage';
-import { lowlight } from 'lowlight';
+import { createLowlight, common } from 'lowlight';
 import { Mermaid } from './extensions/mermaid';
 import { IndentedImageCodeBlock } from './extensions/indentedImageCodeBlock';
 import { SpaceFriendlyImagePaths } from './extensions/spaceFriendlyImagePaths';
@@ -28,6 +28,9 @@ import { BlankLinePreservation } from './extensions/blankLinePreservation';
 import { OrderedListMarkdownFix } from './extensions/orderedListMarkdownFix';
 import { HtmlPreservingTable } from './extensions/htmlPreservingTable';
 import { DocumentAuditExtension } from './features/auditDocument';
+import { WikilinkNode, setWikilinkNoteIndex } from './extensions/WikilinkNode';
+import { WikilinkSuggestion, setWikilinkSuggestionNotes } from './extensions/WikilinkSuggestion';
+import type { WikilinkNote } from '../services/foam-integration';
 import { createFormattingToolbar, createTableMenu, updateToolbarStates } from './BubbleMenuView';
 import { getEditorMarkdownForSync } from './utils/markdownSerialization';
 import { installBlankLineLexerNormalizer } from './utils/markedLexerNormalizer';
@@ -93,7 +96,8 @@ import java from 'highlight.js/lib/languages/java';
 import go from 'highlight.js/lib/languages/go';
 import rust from 'highlight.js/lib/languages/rust';
 
-// Register languages with lowlight
+// Create and configure lowlight instance
+const lowlight = createLowlight(common);
 lowlight.registerLanguage('javascript', javascript);
 lowlight.registerLanguage('typescript', typescript);
 lowlight.registerLanguage('python', python);
@@ -486,6 +490,19 @@ function initializeEditor(initialContent: string) {
           getShowImageHoverOverlay: () => (window as any).showImageHoverOverlay,
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any),
+        WikilinkNode,
+        WikilinkSuggestion.configure({
+          char: '[[',
+          allowSpaces: true,
+          command: ({ editor, range, props }) => {
+            editor
+              .chain()
+              .focus()
+              .deleteRange(range)
+              .insertWikilink(props.identifier)
+              .run();
+          },
+        }),
         DocumentAuditExtension,
       ],
       // Don't pass content here - we'll set it after init with contentType: 'markdown'
@@ -1329,6 +1346,15 @@ window.addEventListener('message', (event: MessageEvent) => {
           const requestId = message.requestId as number;
           handleFileSearchResults(results, requestId);
         });
+        break;
+      }
+      case 'noteIndex': {
+        // Update wikilinks with the note index from Foam
+        if (message.notes && Array.isArray(message.notes)) {
+          const notes = message.notes as WikilinkNote[];
+          setWikilinkNoteIndex(notes.map(n => n.identifier));
+          setWikilinkSuggestionNotes(notes);
+        }
         break;
       }
       default:
