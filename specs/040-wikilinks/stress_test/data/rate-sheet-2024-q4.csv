@@ -1,0 +1,6 @@
+tier,credit_score_min,credit_score_max,term_36_rate,term_48_rate,term_60_rate,term_72_rate,term_84_rate,max_ltv,max_dti,effective_date
+Super Prime,780,850,3.49,3.79,3.99,4.29,4.79,110,45,2024-10-01
+Prime,720,779,4.49,4.99,5.49,5.99,6.49,105,45,2024-10-01
+Near Prime,660,719,6.49,6.99,7.49,8.49,9.49,100,42,2024-10-01
+Subprime,600,659,8.99,9.99,10.99,12.49,N/A,95,38,2024-10-01
+Deep Subprime,500,599,12.99,14.99,16.99,N/A,N/A,85,35,2024-10-01

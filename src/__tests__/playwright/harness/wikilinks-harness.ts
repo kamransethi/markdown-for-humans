@@ -27,6 +27,7 @@ import { Editor } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import { Markdown } from '@tiptap/markdown';
 import Paragraph from '@tiptap/extension-paragraph';
+import { Table, TableRow, TableHeader, TableCell } from '@tiptap/extension-table';
 import {
   WikilinkNode,
   setWikilinkNoteIndex,
@@ -160,13 +161,13 @@ const editor = new Editor({
   extensions: [
     StarterKit.configure({
       paragraph: false,
-      bulletList: false,
-      orderedList: false,
-      listItem: false,
-      listKeymap: false,
       link: false,
     }),
     Paragraph,
+    Table.configure({ resizable: false }),
+    TableRow,
+    TableHeader,
+    TableCell,
     Markdown.configure({
       markedOptions: { gfm: true, breaks: true },
     }),

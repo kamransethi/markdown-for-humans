@@ -1064,26 +1064,17 @@ function initializeEditor(initialContent: string) {
         // because marked is typed as a function+namespace, not a class instance.
         marked: (() => {
           const m = new Marked();
-          // Register a custom inline extension so [[identifier]] text is tokenized
-          // as a 'wikilink' token type that WikilinkNode.parseMarkdown can claim.
-          m.use({
-            extensions: [
-              {
-                name: 'wikilink',
-                level: 'inline' as const,
-                start(src: string) {
-                  return src.indexOf('[[');
-                },
-                tokenizer(src: string) {
-                  const match = /^\[\[([^\]|\n]+)\]\]/.exec(src);
-                  if (match) {
-                    return { type: 'wikilink', raw: match[0], identifier: match[1].trim() };
-                  }
-                  return undefined;
-                },
-              },
-            ],
-          });
+          // Patch m.Lexer so createLexer() (calls `new this.markedInstance.Lexer()` with no
+          // options) uses the instance's own defaults instead of the global marked defaults.
+          // Without this, extensions registered via markdownTokenizer (which calls m.use() and
+          // updates m.defaults) are never visible to the Lexer — wikilinks don't parse anywhere.
+          const OrigLexer = m.Lexer;
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          m.Lexer = class extends (OrigLexer as any) {
+            constructor(options?: object) {
+              super(options ?? m.defaults);
+            }
+          } as typeof m.Lexer;
           return m;
         })() as unknown as typeof markedInstance,
         markedOptions: {

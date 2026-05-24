@@ -65,3 +65,4 @@ CLAUDE.md
 .npm-cache/
 **/.DS_Store
 
+.aider*

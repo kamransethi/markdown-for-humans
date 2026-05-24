@@ -28,10 +28,11 @@ export function setWikilinkNoteIndex(identifiers: string[]): void {
   // Refresh all rendered wikilink nodes so loading->valid/broken transitions apply
   document.querySelectorAll<HTMLElement>('[data-wikilink]').forEach(el => {
     const id = el.getAttribute('data-wikilink-id') || '';
+    const alias = el.getAttribute('data-wikilink-alias') || '';
     const state = getWikilinkState(id);
     el.className = `wikilink wikilink--${state}`;
     el.setAttribute('data-wikilink-state', state);
-    el.textContent = getDisplayTitle(id);
+    el.textContent = alias || getDisplayTitle(id);
   });
   noteIndexChangeCallback?.();
 }
@@ -45,7 +46,9 @@ export function registerNoteIndexChangeHandler(cb: () => void): void {
 }
 
 export function getDisplayTitle(identifier: string): string {
-  return noteTitleMap.get(identifier.toLowerCase()) || identifier;
+  // Strip heading anchor (#section) for title/index lookup
+  const baseId = identifier.split('#')[0];
+  return noteTitleMap.get(baseId.toLowerCase()) || baseId;
 }
 
 export function getIsBroken(identifier: string): boolean {
@@ -55,7 +58,9 @@ export function getIsBroken(identifier: string): boolean {
 
 export function getWikilinkState(identifier: string): 'loading' | 'valid' | 'broken' {
   if (noteIdentifiers.size === 0) return 'loading';
-  return noteIdentifiers.has(identifier.toLowerCase()) ? 'valid' : 'broken';
+  // Strip heading anchor (#section) before checking the index
+  const baseId = identifier.split('#')[0];
+  return noteIdentifiers.has(baseId.toLowerCase()) ? 'valid' : 'broken';
 }
 
 export const WIKILINK_REGEX = /\[\[([^\]|[\n]+)\]\]/;
@@ -78,7 +83,9 @@ export const WikilinkNode = Node.create({
   addAttributes() {
     return {
       identifier: { default: '' },
+      alias: { default: '' },
       broken: { default: false },
+      embedded: { default: false },
     };
   },
 
@@ -89,8 +96,10 @@ export const WikilinkNode = Node.create({
         getAttrs: el => {
           const elem = el as HTMLElement;
           const id = elem.getAttribute('data-wikilink-id') || '';
+          const alias = elem.getAttribute('data-wikilink-alias') || '';
           const broken = elem.classList.contains('wikilink--broken');
-          return { identifier: id, broken };
+          const embedded = elem.hasAttribute('data-wikilink-embedded');
+          return { identifier: id, alias, broken, embedded };
         },
       },
     ];
@@ -98,17 +107,19 @@ export const WikilinkNode = Node.create({
 
   renderHTML({ node }) {
     const identifier = node.attrs.identifier as string;
+    const alias = (node.attrs.alias as string) || '';
+    const embedded = node.attrs.embedded as boolean;
     const state = getWikilinkState(identifier);
-    const cls = `wikilink wikilink--${state}`;
-    return [
-      'span',
-      {
-        'data-wikilink': '',
-        'data-wikilink-id': identifier,
-        class: cls,
-      },
-      `[[${identifier}]]`,
-    ];
+    const cls = `wikilink wikilink--${state}${embedded ? ' wikilink--embedded' : ''}`;
+    const attrs: Record<string, string> = {
+      'data-wikilink': '',
+      'data-wikilink-id': identifier,
+      class: cls,
+    };
+    if (alias) attrs['data-wikilink-alias'] = alias;
+    if (embedded) attrs['data-wikilink-embedded'] = '';
+    const displayText = alias || getDisplayTitle(identifier);
+    return ['span', attrs, displayText];
   },
 
   markdownTokenName: 'wikilink',
@@ -116,37 +127,69 @@ export const WikilinkNode = Node.create({
   markdownTokenizer: {
     name: 'wikilink',
     level: 'inline' as const,
-    start: '[[',
+    // Match both ![[embedded]] and [[normal]] patterns
+    start: (src: string) => {
+      const embedded = src.indexOf('![[');
+      const normal = src.indexOf('[[');
+      if (embedded === -1) return normal;
+      if (normal === -1) return embedded;
+      return Math.min(embedded, normal);
+    },
     tokenize(src: string) {
-      const match = /^\[\[([^\]|\n]+)\]\]/.exec(src);
+      // Try embedded first: ![[target]] or ![[target|alias]]
+      const embeddedMatch = /^!\[\[([^\]|\n]+?)(?:\|([^\]\n]+))?\]\]/.exec(src);
+      if (embeddedMatch) {
+        return {
+          type: 'wikilink',
+          raw: embeddedMatch[0],
+          identifier: embeddedMatch[1].trim(),
+          alias: embeddedMatch[2]?.trim() ?? '',
+          embedded: true,
+        };
+      }
+      // Normal: [[target]] or [[target|alias]] or [[target#anchor]] or [[target#anchor|alias]]
+      const match = /^\[\[([^\]|\n]+?)(?:\|([^\]\n]+))?\]\]/.exec(src);
       if (match) {
-        return { type: 'wikilink', raw: match[0], identifier: match[1].trim() };
+        return {
+          type: 'wikilink',
+          raw: match[0],
+          identifier: match[1].trim(),
+          alias: match[2]?.trim() ?? '',
+          embedded: false,
+        };
       }
       return undefined;
     },
   },
 
   parseMarkdown: (token, helpers) => {
-    const identifier = ((token as unknown as Record<string, string>).identifier ?? '').trim();
+    const tok = token as unknown as Record<string, unknown>;
+    const identifier = ((tok.identifier as string) ?? '').trim();
     if (!identifier) return [];
-    return helpers.createNode('wikilink', { identifier, broken: false });
+    const alias = ((tok.alias as string) ?? '').trim();
+    const embedded = (tok.embedded as boolean) ?? false;
+    return helpers.createNode('wikilink', { identifier, alias, broken: false, embedded });
   },
 
   renderMarkdown: (node, _helpers) => {
     const identifier = (node.attrs?.identifier as string) ?? '';
-    return `[[${identifier}]]`;
+    const alias = (node.attrs?.alias as string) ?? '';
+    const embedded = (node.attrs?.embedded as boolean) ?? false;
+    const prefix = embedded ? '!' : '';
+    return alias ? `${prefix}[[${identifier}|${alias}]]` : `${prefix}[[${identifier}]]`;
   },
 
   addInputRules() {
     return [
       new InputRule({
-        find: /\[\[([^\]|[\n]+)\]\]$/,
+        find: /\[\[([^\]|[\n]+?)(?:\|([^\]\n]+))?\]\]$/,
         handler: ({ state, range, match }) => {
           const identifier = match[1];
+          const alias = match[2]?.trim() ?? '';
           state.tr.replaceRangeWith(
             range.from,
             range.to,
-            this.type.create({ identifier, broken: getIsBroken(identifier) })
+            this.type.create({ identifier, alias, broken: getIsBroken(identifier) })
           );
         },
       }),
@@ -156,13 +199,16 @@ export const WikilinkNode = Node.create({
   addPasteRules() {
     return [
       new PasteRule({
-        find: WIKILINK_REGEX_GLOBAL,
+        find: /!?\[\[([^\]|[\n]+?)(?:\|([^\]\n]+))?\]\]/g,
         handler: ({ state, range, match }) => {
+          const raw = match[0];
+          const embedded = raw.startsWith('!');
           const identifier = match[1];
+          const alias = match[2]?.trim() ?? '';
           state.tr.replaceRangeWith(
             range.from,
             range.to,
-            this.type.create({ identifier, broken: getIsBroken(identifier) })
+            this.type.create({ identifier, alias, broken: getIsBroken(identifier), embedded })
           );
         },
       }),
@@ -175,11 +221,16 @@ export const WikilinkNode = Node.create({
       const identifier = node.attrs.identifier as string;
       const state = getWikilinkState(identifier);
 
+      const alias = node.attrs.alias as string;
+      const embedded = node.attrs.embedded as boolean;
+
       dom.setAttribute('data-wikilink', '');
       dom.setAttribute('data-wikilink-id', identifier);
       dom.setAttribute('data-wikilink-state', state);
-      dom.className = `wikilink wikilink--${state}`;
-      dom.textContent = getDisplayTitle(identifier);
+      if (alias) dom.setAttribute('data-wikilink-alias', alias);
+      if (embedded) dom.setAttribute('data-wikilink-embedded', '');
+      dom.className = `wikilink wikilink--${state}${embedded ? ' wikilink--embedded' : ''}`;
+      dom.textContent = alias || getDisplayTitle(identifier);
 
       dom.addEventListener('click', () => {
         const api = (window as unknown as { vscode?: { postMessage: (msg: unknown) => void } })

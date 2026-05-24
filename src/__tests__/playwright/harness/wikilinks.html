@@ -79,6 +79,15 @@
       text-decoration: none;
     }
 
+    /* Embedded wikilinks (![[file]]) */
+    .wikilink--embedded {
+      font-style: italic;
+    }
+    .wikilink--embedded::before {
+      content: '📎 ';
+      font-style: normal;
+    }
+
     /* ---- Suggestion dropdown ---- */
     .wikilink-suggestion {
       position: fixed;

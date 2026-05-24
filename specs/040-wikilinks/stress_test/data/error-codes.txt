@@ -1,0 +1,16 @@
+ERR-1001  MISSING_SSN               Applicant SSN is required
+ERR-1002  INVALID_SSN_FORMAT        SSN must be 9 digits, no dashes
+ERR-1003  MISSING_DOB               Date of birth is required
+ERR-2001  BUREAU_TIMEOUT            Equifax did not respond within SLA
+ERR-2002  BUREAU_NO_HIT             No credit file found at bureau
+ERR-2003  BUREAU_FROZEN             Credit file is frozen by consumer
+ERR-2004  BUREAU_FRAUD_ALERT        Active fraud alert on credit file
+ERR-3001  DTI_EXCEEDS_LIMIT         Debt-to-income exceeds policy max
+ERR-3002  LTV_EXCEEDS_LIMIT         Loan-to-value exceeds policy max
+ERR-3003  TERM_NOT_AVAILABLE        Requested term not offered for tier
+ERR-3004  VEHICLE_AGE_EXCEEDED      Vehicle too old for requested term
+ERR-4001  DEALER_NOT_ACTIVE         Dealer account is suspended or inactive
+ERR-4002  DEALER_LIMIT_REACHED      Dealer daily submission limit reached
+ERR-5001  STIP_INCOMPLETE           Required stipulations not yet satisfied
+ERR-5002  DOCS_EXPIRED              Supporting documents have expired
+ERR-9999  UNKNOWN_ERROR             Unclassified system error

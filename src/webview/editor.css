@@ -1387,6 +1387,16 @@ body[data-theme="dark"] .github-alert {
   text-decoration: none;
 }
 
+/* Embedded wikilinks (![[file]]) — shown with a file-embed indicator */
+.wikilink--embedded {
+  font-style: italic;
+}
+
+.wikilink--embedded::before {
+  content: '📎 ';
+  font-style: normal;
+}
+
 /* Wikilink autocomplete dropdown */
 .wikilink-suggestion {
   position: fixed;

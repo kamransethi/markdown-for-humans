@@ -1,0 +1,8 @@
+DLR-2201  Prestige Auto Group          Sacramento  CA  ACTIVE    2019-03-15  Tier-1
+DLR-4478  Valley Motors Inc            Phoenix     AZ  ACTIVE    2020-07-22  Tier-1
+DLR-7712  Lakeside Chevrolet-Ford       Chicago     IL  ACTIVE    2018-11-01  Tier-2
+DLR-9903  East Coast Auto Mall          Miami       FL  SUSPENDED 2021-01-10  Tier-3
+DLR-1155  Mountain View Honda           Denver      CO  ACTIVE    2022-05-18  Tier-2
+DLR-3300  Pacific Northwest Toyota      Seattle     WA  ACTIVE    2023-02-28  Tier-1
+DLR-6641  Lone Star Dealerships         Dallas      TX  ACTIVE    2017-09-05  Tier-1
+DLR-8820  Atlantic Autos                Boston      MA  INACTIVE  2019-12-12  Tier-3
