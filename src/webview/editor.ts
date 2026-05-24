@@ -1069,7 +1069,7 @@ function initializeEditor(initialContent: string) {
           // Without this, extensions registered via markdownTokenizer (which calls m.use() and
           // updates m.defaults) are never visible to the Lexer — wikilinks don't parse anywhere.
           const OrigLexer = m.Lexer;
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
           m.Lexer = class extends (OrigLexer as any) {
             constructor(options?: object) {
               super(options ?? m.defaults);
@@ -1844,11 +1844,23 @@ window.addEventListener('message', (event: MessageEvent) => {
         const notes = (message as unknown as { type: string; notes: WikilinkNote[] }).notes;
         if (Array.isArray(notes)) {
           setWikilinkSuggestionNotes(notes);
-          setWikilinkNoteIndex(notes.map(n => n.identifier));
+          // Support both [[folder/note]] and [[note]] resolution styles.
+          // Keep full-path identifiers for unique matching, and add basename
+          // variants for backward compatibility with basename-only wikilinks.
+          const allIdentifiers = notes.flatMap(note => {
+            const parts = note.identifier.split('/');
+            const base = parts[parts.length - 1] || note.identifier;
+            return parts.length > 1 ? [note.identifier, base] : [note.identifier];
+          });
+          setWikilinkNoteIndex(allIdentifiers);
           // Build title map so NodeViews can show resolved titles
           const titleMap = new Map<string, string>();
           for (const note of notes) {
             titleMap.set(note.identifier.toLowerCase(), note.title || note.identifier);
+            const parts = note.identifier.split('/');
+            if (parts.length > 1 && parts[parts.length - 1]) {
+              titleMap.set(parts[parts.length - 1].toLowerCase(), note.title || note.identifier);
+            }
           }
           setWikilinkTitleMap(titleMap);
           // Also expose on window for tooltip renderer

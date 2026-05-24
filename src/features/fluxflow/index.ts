@@ -165,11 +165,14 @@ export function getWikilinkDocuments(workspacePath?: string): WikilinkDocument[]
   for (const [folder, db] of toProcess) {
     for (const row of db.getAllDocuments()) {
       const stem = row.path.replace(/\.md$/, '');
-      // Use just the filename as identifier if unambiguous, else use relative path
-      const identifier = path.basename(stem);
+      // Use the full relative path as identifier (e.g. "workflow/loan-orchestration")
+      // so [[folder/note]] wikilinks resolve correctly. Basename-only identifiers
+      // (e.g. [[loan-orchestration]]) are also added in the editor.ts noteIndex
+      // handler via the flattened set.
+      const identifier = stem;
       docs.push({
         identifier,
-        title: row.title || identifier,
+        title: row.title || path.basename(stem),
         fsPath: path.join(folder, row.path),
         workspacePath: folder,
       });

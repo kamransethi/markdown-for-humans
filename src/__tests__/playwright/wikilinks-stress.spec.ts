@@ -178,17 +178,11 @@ test.describe('Wikilink Stress Test Suite', () => {
   test('TC-STRESS-004: [[target#section|alias]] shows alias and resolves valid', async ({
     page,
   }) => {
-    await setMarkdown(
-      page,
-      'Based on [[credit-policy/tier-matrix#super-prime|Tier assignment]].'
-    );
+    await setMarkdown(page, 'Based on [[credit-policy/tier-matrix#super-prime|Tier assignment]].');
 
     const link = page.locator('[data-wikilink]');
     await expect(link).toBeVisible();
-    await expect(link).toHaveAttribute(
-      'data-wikilink-id',
-      'credit-policy/tier-matrix#super-prime'
-    );
+    await expect(link).toHaveAttribute('data-wikilink-id', 'credit-policy/tier-matrix#super-prime');
     await expect(link).toHaveText('Tier assignment');
     await expect(link).toHaveClass(/wikilink--valid/);
   });
@@ -369,9 +363,9 @@ test.describe('Wikilink Stress Test Suite', () => {
     );
 
     // Embedded
-    await expect(
-      page.locator('[data-wikilink-id="data/rate-sheet-2024-q4.csv"]')
-    ).toHaveClass(/wikilink--embedded/);
+    await expect(page.locator('[data-wikilink-id="data/rate-sheet-2024-q4.csv"]')).toHaveClass(
+      /wikilink--embedded/
+    );
   });
 
   // -------------------------------------------------------------------------
@@ -432,9 +426,7 @@ test.describe('Wikilink Stress Test Suite', () => {
   // alias wikilinks cannot be used inside table cells without escaping.
   // This test verifies anchor wikilinks (which use # not |) work in table cells.
   // -------------------------------------------------------------------------
-  test('TC-STRESS-TABLE-003: anchor wikilinks in table cells resolve valid', async ({
-    page,
-  }) => {
+  test('TC-STRESS-TABLE-003: anchor wikilinks in table cells resolve valid', async ({ page }) => {
     const md = [
       '| Section | Description |',
       '| ------- | ----------- |',

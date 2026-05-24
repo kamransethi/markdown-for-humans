@@ -325,6 +325,28 @@ test.describe('Wikilink Visual & Integration Suite', () => {
   });
 
   // -------------------------------------------------------------------------
+  // TC-ROUND-KEYBOARD: Autocomplete insert does not introduce escaping
+  // -------------------------------------------------------------------------
+  test('TC-ROUND-KEYBOARD: autocomplete insert round-trips without escape artifacts', async ({
+    page,
+  }) => {
+    const editor = page.locator('#editor .ProseMirror');
+    await editor.click();
+
+    // Trigger suggestion list and choose the highlighted first item with Enter.
+    await editor.pressSequentially('[[active', { delay: 60 });
+    const dropdown = page.locator('.wikilink-suggestion');
+    await expect(dropdown).toBeVisible({ timeout: 3_000 });
+    await editor.press('Enter');
+    await page.waitForTimeout(120);
+
+    const output = await getMarkdown(page);
+    expect(output).toContain('[[active-note]]');
+    expect(output).not.toContain('\\[[');
+    expect(output).not.toContain('\\#');
+  });
+
+  // -------------------------------------------------------------------------
   // TC-VIS-LOAD: Loading state resolves after index update
   // -------------------------------------------------------------------------
   test('TC-VIS-LOAD: links start as loading when index is empty, resolve after index set', async ({
