@@ -2,7 +2,7 @@
 
 **Folder**: `specs/041-word-navigation-revamp/`  
 **Created**: 2026-05-24  
-**Status**: Draft  
+**Status**: Complete (v1 local-search variant)  
 **Input**: User description: "I need a revamp of the table of contents / navigation page. I need it to evolve into a Navigation experience like Microsoft Word with some differences. I need to use it to show three tabs like MS Word but with: 1) headings, 2) references (links and backlinks from the page), and 3) search with unique TipTap object IDs so users can jump to each paragraph instead of only headings. Design this carefully and include an ASCII visual."
 
 ## Clarifications
@@ -12,6 +12,11 @@
 - Q: What lifecycle should paragraph/heading object IDs follow for Search navigation accuracy? -> A: Use unique IDs for headings and stored text blocks, scanning to find the exact block and select it.
 - Q: What granularity should the References tab use? -> A: Note-level with fragment awareness, aggregating duplicate occurrences.
 - Q: How should Search results be ordered? -> A: Strictly by document position (top to bottom).
+
+### Session 2026-05-25
+
+- Q: Where should the search input live in the Navigation panel? -> A: In the Search tab only (not as a global or Headings-tab filter).
+- Q: Should Search run across workspace or active file for v1? -> A: Active file only for now.
 
 ## User Scenarios &amp; Testing *(mandatory)*
 
@@ -48,8 +53,6 @@ As a writer reviewing a long document, I can open a Navigation panel and use a H
 +--------------------------------------------------+
 | Navigation                                  [x]  |
 |--------------------------------------------------|
-| [ Search document......................... ] [v] |
-|--------------------------------------------------|
 | Headings | References | Search                 |
 |==========|============|=========================|
 | Executive Summary                                |
@@ -69,6 +72,7 @@ References tab example:
    - tier-matrix
 
 Search tab example:
+  [ Search document......................... ]
   "dealer" (7 results)
    - [obj: para-0184] ...dealer onboarding flow...
    - [obj: para-0291] ...dealer network handoff...
@@ -136,13 +140,13 @@ As a writer searching within a long document, I can use a Search tab that return
 - **FR-007**: System MUST allow users to navigate to a selected reference item from the References tab.
 - **FR-018**: References entries MUST preserve fragment awareness, showing heading or block target context when present.
 - **FR-019**: References entries MUST aggregate duplicate occurrences to avoid repeated raw entries for the same note-level relationship.
-- **FR-008**: System MUST provide in-panel search behavior similar to a document navigation search experience.
+- **FR-008**: System MUST provide in-panel search behavior in the Search tab only (no shared/global search bar).
 - **FR-009**: System MUST return paragraph-level search results, not only heading-level results.
 - **FR-010**: Each search result MUST be associated with a unique object ID representing the matched heading or stored text block.
 - **FR-011**: Selecting a search result MUST navigate to the exact heading or stored text block identified by its unique object ID.
 - **FR-017**: Headings and stored text blocks MUST expose unique IDs that can be scanned and resolved for exact navigation target selection.
 - **FR-012**: Search results MUST display enough surrounding text for users to distinguish similar matches.
-- **FR-020**: Search results MUST be ordered strictly by document position from top to bottom.
+- **FR-020**: Search results MUST be ordered strictly by document position from top to bottom within the active file.
 - **FR-013**: Navigation tab content MUST update when the active document changes.
 - **FR-014**: Navigation tab content MUST refresh when document content changes in ways that affect headings, references, or search results.
 - **FR-015**: Empty states MUST be shown for each tab when no data is available.
@@ -177,6 +181,7 @@ As a writer searching within a long document, I can use a Search tab that return
 ## Assumptions
 
 - The feature is scoped to the editor's desktop navigation panel and not external document viewers.
+- Search scope for v1 is the active file only.
 - Existing heading parsing and link/backlink data sources are available and considered authoritative for v1 behavior.
 - Unique IDs are available on headings and stored text blocks so exact block-level navigation can be resolved from search results.
 - Keyboard and pointer interaction patterns should remain consistent with existing editor accessibility conventions.

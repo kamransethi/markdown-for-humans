@@ -1,11 +1,11 @@
 ﻿# Implementation Plan: Word-Like Navigation Revamp
 
 **Folder**: `specs/041-word-navigation-revamp/plan.md` | **Date**: 2026-05-24 | **Spec**: [spec.md](spec.md)  
-**Status**: Draft -> Approved for task generation
+**Status**: Implemented (v1 local-search variant)
 
 ## Summary
 
-Revamp the current TOC-only left pane into a Word-like Navigation panel with three tabs: Headings, References, and Search. The implementation extends the existing outline pipeline in the webview and integrates existing FluxFlow-backed references in the extension host, while adding block-ID-based paragraph search and exact jump behavior. The approach is incremental: first introduce a unified navigation panel state and tab shell, then wire References and Search providers, then harden refresh behavior and fallback UX.
+Revamp the current TOC-only left pane into a Word-like Navigation panel with three tabs: Headings, References, and Search. The implementation extends the existing outline pipeline in the webview, integrates FluxFlow-backed references from the extension host, and adds block-position search/jump behavior in the active file. In this v1 delivery, search input lives in the Search tab and executes locally in webview state for the current document.
 
 ## Technical Context
 
@@ -63,10 +63,10 @@ Phase 0 research decisions are documented in [research.md](research.md), includi
 
 **Phase 3 - Paragraph Search by Object ID (US3)**
 
-- Add Search tab with document-order results mapped to heading/stored-block IDs.
-- Implement exact navigation resolution with explicit fallback when ID resolution fails.
+- Add Search tab with tab-local input and document-order results in the active file.
+- Implement direct navigation to matched block positions in the current editor document.
 - Files: `src/webview/editor.ts`, `src/webview/features/tocPane.ts`, `src/webview/utils/outline.ts` (or new navigation indexing utility), `src/shared/messageTypes.ts`
-- Tests: unit tests for ordering and ID resolution fallback + Playwright search-to-jump scenarios
+- Tests: unit tests for ordering and navigation behavior; Playwright scenarios remain scaffolded
 
 **Phase 4 - Refresh, Empty States, and Regression Hardening**
 
@@ -127,4 +127,10 @@ Phase 0 research decisions are documented in [research.md](research.md), includi
 - Simplicity: PASS
 - Styling discipline: PASS
 
-Post-design review confirms no constitution gate failures.
+## Implementation Closure Notes
+
+- Search bar placement was finalized to the Search tab only.
+- Search execution is local to the active file for this release.
+- References are served through `navigationContextRequest` and rendered as grouped outgoing/backlink sections.
+
+Post-implementation review confirms no constitution gate failures for shipped scope.

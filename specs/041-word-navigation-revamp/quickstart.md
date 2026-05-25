@@ -20,9 +20,10 @@
 - Render outgoing/backlink grouped lists in `src/webview/features/tocPane.ts`.
 
 3. Implement Phase 3 search navigation
-- Build paragraph block index with block IDs in webview editor flow.
+- Place search input inside the Search tab (not global header).
+- Execute search locally against the active editor document.
 - Return strict document-order results and render snippets.
-- Add exact-target navigation plus fallback status.
+- Navigate to matched block positions on result selection.
 
 4. Implement Phase 4 hardening
 - Ensure refresh on active doc change and content edits.
@@ -44,6 +45,8 @@
   - Search tab paragraph-level results and exact jump
   - Fallback and empty-state behavior
 
+Note: In current v1 closure, Playwright coverage remains scaffolded and manual validation was used for tab interactions.
+
 3. Regression verification
 - Run: `npm test`
 - Run relevant Playwright suite for new navigation tests.
@@ -53,7 +56,8 @@
 
 - Headings tab displays hierarchy and jumps to selected heading.
 - References tab shows outgoing and backlinks separately with fragment context.
-- Search tab returns paragraph-level hits ordered top-to-bottom.
+- Search tab returns paragraph-level hits ordered top-to-bottom for the active file.
+- Search input is visible only inside the Search tab.
 - Selecting a search hit navigates to exact block or shows fallback status.
 - Panel refreshes on document switch and content edits.
 - Empty states appear for no headings/no references/no search results.

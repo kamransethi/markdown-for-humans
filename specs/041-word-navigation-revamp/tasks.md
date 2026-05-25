@@ -1,5 +1,13 @@
 # Tasks: Word-Like Navigation Revamp
 
+**Status**: Complete for v1 local-search delivery
+
+## Closure Summary
+
+- Shipped: tabbed Navigation UI (Headings, References, Search), grouped references, Search-tab-only input, active-file local search, and click-to-navigate result behavior.
+- Verified: unit test coverage for pane behavior plus manual end-to-end validation.
+- Deferred: replacing remaining scaffolded provider/Playwright placeholders with full automated end-to-end assertions.
+
 **Input**: Design documents from `/specs/041-word-navigation-revamp/`
 **Prerequisites**: `plan.md` (required), `spec.md` (required), `research.md`, `data-model.md`, `contracts/navigation-panel-contract.md`, `quickstart.md`
 

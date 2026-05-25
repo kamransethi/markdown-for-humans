@@ -4,6 +4,8 @@
 
 Define message contracts and payload shapes required for Headings, References, and Search tabs in the navigation panel.
 
+Implementation note (v1): Search is executed locally in the webview for the active file. `NAVIGATION_SEARCH_REQUEST`/`NAVIGATION_SEARCH_RESULT` remain reserved for future host-provider expansion.
+
 ## Channel
 
 - Transport: existing webview `postMessage` protocol
@@ -67,6 +69,7 @@ Define message contracts and payload shapes required for Headings, References, a
 
 - Direction: webview -> webview-local indexer or extension (implementation choice in phase tasks)
 - Purpose: request paragraph-level search results
+- Status: reserved for future provider-based search; not required in v1 local-search flow
 - Payload:
 
 ```ts
@@ -81,6 +84,7 @@ Define message contracts and payload shapes required for Headings, References, a
 
 - Direction: provider -> webview
 - Purpose: return ordered paragraph-level hits
+- Status: reserved for future provider-based search; not required in v1 local-search flow
 - Payload:
 
 ```ts
