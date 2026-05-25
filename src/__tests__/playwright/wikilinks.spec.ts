@@ -215,7 +215,9 @@ test.describe('Wikilink Visual & Integration Suite', () => {
     const refs = tooltip.locator('.wikilink-preview-tooltip__refs-list li');
     await expect(refs).toHaveCount(2);
     // Refs should be clickable links
-    const refLinks = tooltip.locator('.wikilink-preview-tooltip__refs-list .wikilink-preview-tooltip__ref-link');
+    const refLinks = tooltip.locator(
+      '.wikilink-preview-tooltip__refs-list .wikilink-preview-tooltip__ref-link'
+    );
     await expect(refLinks).toHaveCount(2);
 
     // Not in broken state
@@ -255,7 +257,9 @@ test.describe('Wikilink Visual & Integration Suite', () => {
   // -------------------------------------------------------------------------
   // TC-VIS-005-DEALER: Dealer-network hover shows rich markdown preview
   // -------------------------------------------------------------------------
-  test('TC-VIS-005-DEALER: hovering dealer-network link shows rendered markdown and refs', async ({ page }) => {
+  test('TC-VIS-005-DEALER: hovering dealer-network link shows rendered markdown and refs', async ({
+    page,
+  }) => {
     await setMarkdown(
       page,
       'The [[dealership/dealer-network|dealer-originated]] loan submissions.'
@@ -285,7 +289,9 @@ test.describe('Wikilink Visual & Integration Suite', () => {
     // 12 reference notes section
     const refsTitle = tooltip.locator('.wikilink-preview-tooltip__refs-title');
     await expect(refsTitle).toContainText('Also referenced in 12 notes');
-    const refLinks = tooltip.locator('.wikilink-preview-tooltip__refs-list .wikilink-preview-tooltip__ref-link');
+    const refLinks = tooltip.locator(
+      '.wikilink-preview-tooltip__refs-list .wikilink-preview-tooltip__ref-link'
+    );
     await expect(refLinks).toHaveCount(10); // 10 sources provided in mock
 
     // Snapshot for visual regression

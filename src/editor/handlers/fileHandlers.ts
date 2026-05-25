@@ -7,6 +7,7 @@
 
 import * as vscode from 'vscode';
 import * as path from 'path';
+import * as fs from 'fs';
 import { MessageType } from '../../shared/messageTypes';
 import { toErrorMessage } from '../../shared/errorUtils';
 import { type HandlerContext, type MessageRouter } from '../messageRouter';
@@ -17,6 +18,7 @@ import {
   resolveMediaTargetFolder,
   createUniqueTargetFile,
 } from '../utils/pathUtils';
+import { getWikilinkDatabase, resolveWikilinkPath } from '../../features/fluxflow/index';
 
 /** Register all file/navigation message handlers with the router. */
 export function registerFileHandlers(router: MessageRouter): void {
@@ -33,6 +35,7 @@ export function registerFileHandlers(router: MessageRouter): void {
   router.register(MessageType.SAVE_FILES, handleSaveFiles);
   router.register(MessageType.OPEN_DRAWIO_FILE, handleOpenDrawioFile);
   router.register(MessageType.GET_WORKSPACE_FILES, handleGetWorkspaceFiles);
+  router.register(MessageType.NAVIGATION_CONTEXT_REQUEST, handleNavigationContextRequest);
 }
 
 export async function handleOpenFileAtLocation(
@@ -941,6 +944,149 @@ export async function handleGetWorkspaceFiles(
       type: MessageType.WORKSPACE_FILES_RESULT,
       results: [],
       error: 'Failed to get workspace files',
+    });
+  }
+}
+
+export async function handleNavigationContextRequest(
+  message: { type: string; [key: string]: unknown },
+  ctx: HandlerContext
+): Promise<void> {
+  const { document, webview } = ctx;
+  const documentUri = document.uri;
+
+  try {
+    const workspaceFolder = vscode.workspace.getWorkspaceFolder(documentUri);
+    const workspacePath = workspaceFolder?.uri.fsPath;
+    if (!workspacePath) {
+      webview.postMessage({
+        type: MessageType.NAVIGATION_CONTEXT_RESULT,
+        requestId: message.requestId,
+        documentUri: documentUri.toString(),
+        headings: [],
+        references: { outgoing: [], backlinks: [] },
+      });
+      return;
+    }
+
+    const relPath = path.relative(workspacePath, documentUri.fsPath).split(path.sep).join('/');
+    const db = getWikilinkDatabase(workspacePath);
+    if (!db) {
+      webview.postMessage({
+        type: MessageType.NAVIGATION_CONTEXT_RESULT,
+        requestId: message.requestId,
+        documentUri: documentUri.toString(),
+        headings: [],
+        references: { outgoing: [], backlinks: [] },
+      });
+      return;
+    }
+
+    // 1. Outgoing links
+    const rawOutgoing = db.getOutgoingLinks(relPath);
+    const outgoingMap = new Map<
+      string,
+      {
+        key: string;
+        notePath: string;
+        title: string;
+        fragment: string | null;
+        occurrenceCount: number;
+        broken: boolean;
+      }
+    >();
+
+    for (const link of rawOutgoing) {
+      let targetPath = link.targetPath;
+      let broken = false;
+      if (!targetPath) {
+        // Try to resolve
+        const resolved = resolveWikilinkPath(link.targetTitle, workspacePath);
+        if (resolved) {
+          targetPath = path.relative(workspacePath, resolved).split(path.sep).join('/');
+        } else {
+          broken = true;
+          targetPath = link.targetTitle;
+        }
+      }
+
+      // Check if target file actually exists
+      if (targetPath && !broken) {
+        const fullTargetPath = path.resolve(workspacePath, targetPath);
+        if (!fs.existsSync(fullTargetPath)) {
+          broken = true;
+        }
+      }
+
+      const key = targetPath || link.targetTitle;
+      if (outgoingMap.has(key)) {
+        const existing = outgoingMap.get(key)!;
+        existing.occurrenceCount++;
+      } else {
+        outgoingMap.set(key, {
+          key,
+          notePath: targetPath || link.targetTitle,
+          title: link.targetTitle,
+          fragment: link.context || null,
+          occurrenceCount: 1,
+          broken,
+        });
+      }
+    }
+
+    // 2. Backlinks
+    const rawBacklinks = db.getBacklinks(relPath);
+    const backlinksMap = new Map<
+      string,
+      {
+        key: string;
+        notePath: string;
+        title: string;
+        fragment: string | null;
+        occurrenceCount: number;
+        broken: boolean;
+      }
+    >();
+
+    for (const entry of rawBacklinks) {
+      const key = entry.sourcePath;
+      const title = entry.sourceTitle || path.basename(entry.sourcePath, '.md');
+      const fragment = entry.context || null;
+
+      if (backlinksMap.has(key)) {
+        const existing = backlinksMap.get(key)!;
+        existing.occurrenceCount++;
+      } else {
+        backlinksMap.set(key, {
+          key,
+          notePath: entry.sourcePath,
+          title,
+          fragment,
+          occurrenceCount: 1,
+          broken: false,
+        });
+      }
+    }
+
+    // Return results
+    webview.postMessage({
+      type: MessageType.NAVIGATION_CONTEXT_RESULT,
+      requestId: message.requestId,
+      documentUri: documentUri.toString(),
+      headings: [], // Headings handled natively in Tiptap
+      references: {
+        outgoing: Array.from(outgoingMap.values()),
+        backlinks: Array.from(backlinksMap.values()),
+      },
+    });
+  } catch (error) {
+    console.error('[Navigation Context] Failed to handle request:', error);
+    webview.postMessage({
+      type: MessageType.NAVIGATION_CONTEXT_RESULT,
+      requestId: message.requestId,
+      documentUri: documentUri.toString(),
+      headings: [],
+      references: { outgoing: [], backlinks: [] },
     });
   }
 }

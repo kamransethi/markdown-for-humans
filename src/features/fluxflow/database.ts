@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright (c) 2025-2026 DK-AI
  *
  * Licensed under the MIT License. See LICENSE file in the project root for details.
@@ -512,5 +512,31 @@ export class GraphDatabase {
       hash: r[3] as string,
       indexedAt: r[4] as number,
     };
+  }
+
+  getOutgoingLinks(docPath: string): Array<{
+    targetTitle: string;
+    lineNumber: number;
+    context: string;
+    targetPath: string | null;
+  }> {
+    if (!this.db) return [];
+    const doc = this.getDocumentByPath(docPath);
+    if (!doc) return [];
+
+    const rows = this.db.exec(
+      `SELECT l.target_title, l.line_number, l.context, d2.path
+       FROM links l
+       LEFT JOIN documents d2 ON d2.id = l.target_id
+       WHERE l.source_id = ?`,
+      [doc.id]
+    );
+    if (!rows.length || !rows[0].values.length) return [];
+    return rows[0].values.map((row: any[]) => ({
+      targetTitle: row[0] as string,
+      lineNumber: row[1] as number,
+      context: row[2] as string,
+      targetPath: row[3] as string | null,
+    }));
   }
 }

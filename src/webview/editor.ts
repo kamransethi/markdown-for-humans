@@ -67,7 +67,13 @@ import {
 import { ImageUploadPlugin } from './extensions/imageUploadPlugin';
 import { setupFileLinkDrop } from './features/fileLinkDrop';
 import { renderTableToMarkdownWithBreaks } from './utils/tableMarkdownSerializer';
-import { createTocPane, type TocPaneAnchor } from './features/tocPane';
+import {
+  createTocPane,
+  type TocPaneAnchor,
+  type NavigationContextResultPayload,
+  type NavigationSearchResultPayload,
+  type NavigationStatusPayload,
+} from './features/tocPane';
 import { setupClipboardHandlers } from './features/clipboardHandling';
 import { createKeydownHandler } from './features/keyboardShortcuts';
 import { createLinkClickHandler } from './features/linkHandling';
@@ -374,6 +380,12 @@ let tableContextMenuCtrl: ReturnType<typeof createTableContextMenu> | null = nul
 let imageContextMenuCtrl: ReturnType<typeof createImageContextMenu> | null = null;
 let tocPaneController: ReturnType<typeof createTocPane> | null = null;
 let tocAnchors: TocPaneAnchor[] = [];
+let pendingNavigationReferences: NavigationContextResultPayload['references'] = {
+  outgoing: [],
+  backlinks: [],
+};
+let pendingNavigationSearchResults: NavigationSearchResultPayload['results'] = [];
+let pendingNavigationStatusMessage: string | null = null;
 let tocMaxDepth = 3;
 let showSelectionToolbar = false;
 let compressTables = false;
@@ -423,6 +435,114 @@ function refreshTocPaneSelection() {
       isActive: activeId !== null && anchor.id === activeId,
     }))
   );
+}
+
+function applyNavigationPayloadToPane() {
+  if (!tocPaneController) {
+    return;
+  }
+
+  tocPaneController.setReferences(pendingNavigationReferences);
+  tocPaneController.setSearchResults(pendingNavigationSearchResults);
+  tocPaneController.setStatusMessage(pendingNavigationStatusMessage);
+}
+
+function executeLocalSearch(query: string): Array<{
+  resultId: string;
+  blockId: string;
+  snippet: string;
+  pos: number;
+}> {
+  if (!editor || !query.trim()) return [];
+
+  const results: Array<{
+    resultId: string;
+    blockId: string;
+    snippet: string;
+    pos: number;
+  }> = [];
+
+  const q = query.trim().toLowerCase();
+
+  editor.state.doc.descendants((node, pos) => {
+    // Only search block nodes that can contain text (like paragraph, heading, blockquote, bulletList/orderedList items)
+    if (node.isBlock && node.textContent.trim().length > 0) {
+      const text = node.textContent;
+      if (text.toLowerCase().includes(q)) {
+        const resultId = `search-result-${results.length}`;
+        const blockId = node.attrs.id || `block-${pos}`;
+
+        // Escape HTML in text to prevent injection, then highlight
+        const escapedText = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        const regex = new RegExp(`(${q.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')})`, 'gi');
+        const snippet = escapedText.replace(regex, '<mark>$1</mark>');
+
+        results.push({
+          resultId,
+          blockId,
+          snippet,
+          pos,
+        });
+      }
+    }
+    return true;
+  });
+
+  return results;
+}
+
+function scrollToBlock(editorInstance: Editor, pos: number) {
+  // Focus and set selection at the position
+  editorInstance.commands.setTextSelection(pos);
+  editorInstance.commands.focus();
+
+  // Scroll to the selected block element
+  requestAnimationFrame(() => {
+    try {
+      const view = editorInstance.view;
+      const domPos = view.domAtPos(pos);
+
+      let element: Node = domPos.node;
+      if (
+        domPos.node.nodeType === Node.ELEMENT_NODE &&
+        domPos.offset < domPos.node.childNodes.length
+      ) {
+        element = domPos.node.childNodes[domPos.offset];
+      }
+
+      if (element.nodeType === Node.TEXT_NODE) {
+        element = element.parentElement as HTMLElement;
+      }
+
+      let target = element as HTMLElement;
+      // Walk up to find the top-level block element in the editor
+      let depth = 0;
+      while (
+        target &&
+        target.parentElement &&
+        target.parentElement.id !== 'editor' &&
+        !target.parentElement.classList.contains('ProseMirror')
+      ) {
+        target = target.parentElement as HTMLElement;
+        depth++;
+        if (depth > 15) break;
+      }
+
+      if (target) {
+        const toolbar = document.querySelector('.formatting-toolbar');
+        const toolbarHeight = toolbar ? toolbar.getBoundingClientRect().height : 0;
+        const offset = toolbarHeight + 16;
+
+        const scrollContainer = document.documentElement;
+        const targetRect = target.getBoundingClientRect();
+        const scrollTop = scrollContainer.scrollTop + targetRect.top - offset;
+
+        scrollContainer.scrollTop = scrollTop;
+      }
+    } catch (error) {
+      console.warn('[Scroll] Could not scroll to block:', error);
+    }
+  });
 }
 
 function formatLastUpdated(timestamp: number): string {
@@ -701,6 +821,12 @@ const pushOutlineUpdate = () => {
   try {
     const outline = buildOutlineFromEditor(editor);
     vscode.postMessage({ type: MessageType.OUTLINE_UPDATED, outline });
+
+    // Also fetch references context
+    vscode.postMessage({
+      type: MessageType.NAVIGATION_CONTEXT_REQUEST,
+      requestId: createRequestId('nav'),
+    });
   } catch (error) {
     console.warn('[DK-AI] Failed to build outline:', error);
   }
@@ -1301,13 +1427,29 @@ function initializeEditor(initialContent: string) {
     tocPaneController = createTocPane({
       mount: tocMount,
       onNavigate: anchor => {
-        scrollToHeading(editorInstance, anchor.pos);
+        if (anchor.level === 0) {
+          scrollToBlock(editorInstance, anchor.pos);
+        } else {
+          scrollToHeading(editorInstance, anchor.pos);
+        }
         scheduleTocPaneSelectionRefresh();
       },
+      onSearch: query => {
+        const results = executeLocalSearch(query);
+        tocPaneController?.setSearchResults(results);
+      },
+    });
+    tocPaneController.setActiveTab('headings');
+
+    // Request initial references context
+    vscode.postMessage({
+      type: MessageType.NAVIGATION_CONTEXT_REQUEST,
+      requestId: createRequestId('nav'),
     });
     // Restore outline pane visibility from persisted state (default: visible)
     const savedOutlineVisible = localStorage.getItem('gptAiOutlinePaneVisible');
     tocPaneController.setVisible(savedOutlineVisible !== 'false');
+    applyNavigationPayloadToPane();
 
     const onWindowScroll = () => {
       scheduleTocPaneSelectionRefresh();
@@ -1840,6 +1982,24 @@ window.addEventListener('message', (event: MessageEvent) => {
         // Display front matter validation error dialog
         devLog('[DK-AI] Front matter error:', message.error);
         break;
+      case MessageType.NAVIGATION_CONTEXT_RESULT: {
+        const payload = message as NavigationContextResultPayload;
+        pendingNavigationReferences = payload.references;
+        applyNavigationPayloadToPane();
+        break;
+      }
+      case MessageType.NAVIGATION_SEARCH_RESULT: {
+        const payload = message as NavigationSearchResultPayload;
+        pendingNavigationSearchResults = payload.results;
+        applyNavigationPayloadToPane();
+        break;
+      }
+      case MessageType.NAVIGATION_STATUS: {
+        const payload = message as NavigationStatusPayload;
+        pendingNavigationStatusMessage = payload.message;
+        applyNavigationPayloadToPane();
+        break;
+      }
       case 'noteIndex': {
         const notes = (message as unknown as { type: string; notes: WikilinkNote[] }).notes;
         if (Array.isArray(notes)) {
@@ -2054,6 +2214,11 @@ function updateEditorContent(markdown: string) {
     editor.commands.setContent(preprocessMarkdownContent(incomingBody), {
       contentType: 'markdown',
     });
+    tocPaneController?.setActiveTab('headings');
+    // Restore outline pane visibility from persisted state (default: visible)
+    const savedOutlineVisible = localStorage.getItem('gptAiOutlinePaneVisible');
+    tocPaneController?.setVisible(savedOutlineVisible !== 'false');
+    applyNavigationPayloadToPane();
 
     // Inject front matter as a collapsible atom block at the top
 
