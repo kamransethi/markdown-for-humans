@@ -39,6 +39,12 @@ export function setWikilinkNoteIndex(identifiers: string[]): void {
 
 export function setWikilinkTitleMap(map: Map<string, string>): void {
   noteTitleMap = map;
+  // Refresh all wikilink nodes to display updated titles from the new map
+  document.querySelectorAll<HTMLElement>('[data-wikilink]').forEach(el => {
+    const id = el.getAttribute('data-wikilink-id') || '';
+    const alias = el.getAttribute('data-wikilink-alias') || '';
+    el.textContent = alias || getDisplayTitle(id);
+  });
 }
 
 export function registerNoteIndexChangeHandler(cb: () => void): void {

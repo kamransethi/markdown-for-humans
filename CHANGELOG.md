@@ -32,6 +32,31 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [3.1.0] - 2026-05-25
+
+### Added
+
+- Full Wikilinks feature line shipped to main, centered on the 040-wikilinks scope and stress-test vault content.
+- Wikilink support across editor workflows: typed/pasted wikilinks, hover preview, backlink context, and note opening.
+- Wikilink autocomplete migration to `@tiptap/suggestion` for stronger insertion behavior and better editor integration.
+- Playwright wikilinks harness and stress coverage additions, including hover and resolved-link snapshot validation.
+- Word-like Navigation Revamp (041): tabbed Navigation pane with Headings, References, and local-in-document Search.
+
+### Changed
+
+- Navigation UX now routes search into the Search tab and keeps outline/references context in dedicated tabs.
+- Spec and implementation docs for 041 were aligned to the shipped local-search behavior.
+- Theme usage in webview UI was tightened to extension-owned variables to keep styling independent from VS Code theme tokens.
+
+### Fixed
+
+- Wikilink markdown round-trip reliability, autocomplete insertion behavior, and hover preview robustness.
+- TypeScript and lint issues affecting wikilinks rollout and test harness integration.
+- Day-mode readability for wikilink hover previews (`code`/inline code contrast and error-state styling).
+- Wikilink title display consistency on load by refreshing rendered nodes immediately after title-map updates.
+
+---
+
 ## [2.0.1] - 2026-03-20
 
 ### Changed
