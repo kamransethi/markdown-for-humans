@@ -376,6 +376,73 @@ body[data-theme="dark"] {
   background-color: var(--md-subtle-bg);
 }
 
+.toc-pane-tabstrip {
+  display: flex;
+  gap: 4px;
+  padding: 6px 8px 0;
+  border-bottom: 1px solid var(--md-border);
+  background-color: var(--md-subtle-bg);
+}
+
+.toc-pane-tab {
+  flex: 1;
+  padding: 5px 8px;
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-radius: 8px 8px 0 0;
+  background: transparent;
+  color: var(--md-muted);
+  font-family: var(--md-font-sans);
+  font-size: 12px;
+  line-height: 1.3;
+  cursor: pointer;
+  transition: color 0.15s, background-color 0.15s, border-color 0.15s;
+}
+
+.toc-pane-tab:hover {
+  color: var(--md-foreground);
+  background-color: var(--md-hover-bg);
+}
+
+.toc-pane-tab.is-active {
+  color: var(--md-foreground);
+  background-color: var(--md-background);
+  border-color: var(--md-border);
+  border-bottom-color: var(--md-background);
+}
+
+.toc-pane-status {
+  padding: 6px 10px 0;
+  color: var(--md-muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.toc-pane-sections {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.toc-pane-section {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+}
+
+.toc-pane-section[hidden] {
+  display: none;
+}
+
+.toc-pane-list--references,
+.toc-pane-list--search {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 .toc-pane-filter {
   flex: 1;
   min-width: 0;
@@ -548,6 +615,239 @@ body[data-theme="dark"] {
   color: var(--md-muted);
   font-size: var(--ui-font-base);
   padding: 10px;
+}
+
+/* ============================================
+   Navigation Pane — Search Input
+   ============================================ */
+
+.toc-pane-search-container {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px;
+  flex-shrink: 0;
+}
+
+.toc-pane-search-input {
+  flex: 1;
+  min-width: 0;
+  padding: 5px 8px;
+  border: 1px solid var(--md-border);
+  border-radius: var(--ui-radius-sm);
+  background: var(--md-background);
+  color: var(--md-foreground);
+  font-family: var(--md-font-sans);
+  font-size: var(--ui-font-sm);
+  line-height: 1.4;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.toc-pane-search-input::placeholder {
+  color: var(--md-muted);
+  font-size: 11px;
+}
+
+.toc-pane-search-input:focus {
+  border-color: var(--md-focus);
+}
+
+.toc-pane-search-clear {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: var(--ui-radius-sm);
+  background: none;
+  color: var(--md-muted);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  transition: color 0.15s, background-color 0.15s;
+}
+
+.toc-pane-search-clear:hover {
+  color: var(--md-foreground);
+  background-color: var(--md-hover-bg);
+}
+
+/* ============================================
+   Navigation Pane — Reference Groups
+   ============================================ */
+
+.toc-pane-group-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  cursor: pointer;
+  user-select: none;
+  border-radius: var(--ui-radius-sm);
+  transition: background-color 0.15s;
+}
+
+.toc-pane-group-header:hover {
+  background-color: var(--md-hover-bg);
+}
+
+.toc-pane-group-arrow {
+  flex-shrink: 0;
+  font-size: 10px;
+  color: var(--md-muted);
+  width: 14px;
+  text-align: center;
+  transition: color 0.15s;
+}
+
+.toc-pane-group-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--md-muted);
+}
+
+.toc-pane-group-container {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 4px;
+}
+
+.toc-pane-group-container.is-collapsed {
+  display: none;
+}
+
+/* ============================================
+   Navigation Pane — Reference Items
+   ============================================ */
+
+.toc-pane-reference-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  padding: 6px 10px;
+  border: none;
+  border-radius: var(--ui-radius-md);
+  background: transparent;
+  color: var(--md-foreground);
+  text-align: left;
+  cursor: pointer;
+  font-family: var(--md-font-sans);
+  transition: background-color 0.15s;
+}
+
+.toc-pane-reference-item:hover {
+  background-color: var(--md-hover-bg);
+}
+
+.toc-pane-reference-item.is-broken {
+  opacity: 0.65;
+}
+
+.toc-pane-reference-item.is-broken .toc-pane-ref-title {
+  color: var(--md-error-fg);
+}
+
+.toc-pane-ref-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.toc-pane-ref-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--ui-font-base);
+  font-weight: 500;
+  color: var(--md-link-fg);
+}
+
+.toc-pane-ref-badge {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--md-selection);
+  color: var(--md-link-fg);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.toc-pane-ref-path {
+  font-size: 11px;
+  color: var(--md-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.toc-pane-ref-context {
+  font-size: 11px;
+  color: var(--md-muted);
+  font-style: italic;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-top: 1px;
+}
+
+/* ============================================
+   Navigation Pane — Search Results
+   ============================================ */
+
+.toc-pane-search-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  padding: 6px 10px;
+  border: none;
+  border-radius: var(--ui-radius-md);
+  background: transparent;
+  color: var(--md-foreground);
+  text-align: left;
+  cursor: pointer;
+  font-family: var(--md-font-sans);
+  transition: background-color 0.15s;
+}
+
+.toc-pane-search-item:hover {
+  background-color: var(--md-hover-bg);
+}
+
+.toc-pane-search-snippet {
+  font-size: var(--ui-font-base);
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.toc-pane-search-snippet mark {
+  background: var(--md-selection);
+  color: var(--md-link-fg);
+  border-radius: 2px;
+  padding: 0 1px;
+}
+
+.toc-pane-search-pos {
+  font-size: 10px;
+  color: var(--md-muted);
 }
 
 .markdown-editor {

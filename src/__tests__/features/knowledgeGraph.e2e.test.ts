@@ -401,7 +401,11 @@ describe('FluxFlow Knowledge Graph — end-to-end', () => {
   });
 
   it('Step 10c: getBacklinks matches legacy stored wikilink path and alias', () => {
-    database.upsertDocument('dealership/dealer-network.md', 'Dealer Network', 'hash-dealer-network');
+    database.upsertDocument(
+      'dealership/dealer-network.md',
+      'Dealer Network',
+      'hash-dealer-network'
+    );
     const alpha = database.getDocumentByPath('notes/alpha.md')!;
 
     // Legacy malformed storage: path plus alias instead of normalized identifier.

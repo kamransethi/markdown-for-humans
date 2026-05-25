@@ -26,6 +26,12 @@ export const MessageType = {
   SET_OUTLINE_VISIBLE: 'setOutlineVisible',
   NAVIGATE_TO_HEADING: 'navigateToHeading',
   TOGGLE_TOC_OUTLINE_VIEW: 'toggleTocOutlineView',
+  NAVIGATION_CONTEXT_REQUEST: 'navigationContextRequest',
+  NAVIGATION_CONTEXT_RESULT: 'navigationContextResult',
+  NAVIGATION_SEARCH_REQUEST: 'navigationSearchRequest',
+  NAVIGATION_SEARCH_RESULT: 'navigationSearchResult',
+  NAVIGATE_TO_BLOCK: 'navigateToBlock',
+  NAVIGATION_STATUS: 'navigationStatus',
 
   // ── Image operations ──
   SAVE_IMAGE: 'saveImage',

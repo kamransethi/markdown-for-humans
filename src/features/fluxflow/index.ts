@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright (c) 2025-2026 DK-AI
  *
  * Licensed under the MIT License. See LICENSE file in the project root for details.
@@ -30,6 +30,9 @@ let disposables: vscode.Disposable[] = [];
 
 // ---- Wikilink multi-root index (always-on, independent of KG flag) ----
 const wikilinkDatabases = new Map<string, GraphDatabase>();
+export function getWikilinkDatabase(workspacePath: string): GraphDatabase | undefined {
+  return wikilinkDatabases.get(workspacePath);
+}
 const wikilinkChangeCallbacks: Array<() => void> = [];
 
 export interface WikilinkDocument {
