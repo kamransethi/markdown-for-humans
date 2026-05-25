@@ -6,15 +6,17 @@ Apache Kafka serves as the asynchronous event backbone connecting all services i
 
 ## Topics
 
-| Topic | Producer | Consumer | Purpose |
-|-------|----------|----------|---------|
-| `loan.applications.inbound` | [[architecture/api-gateway]] | [[workflow/transaction-intake]] | Raw deal submissions |
-| `loan.applications.enriched` | [[workflow/transaction-intake]] | [[workflow/adjudication-engine]] | Validated & enriched apps |
-| `loan.bureau.requests` | [[workflow/adjudication-engine]] | [[equifax/equifax-integration]] | Bureau pull requests |
-| `loan.bureau.responses` | [[equifax/equifax-integration]] | [[workflow/adjudication-engine]] | Bureau data responses |
-| `loan.decisions.outbound` | [[workflow/adjudication-engine]] | [[decisions/approval-workflow]], [[decisions/counter-offer]], [[decisions/decline-reasons]] | Final decisions |
-| `loan.documents.generate` | Decision services | [[decisions/document-generation]] | Doc generation triggers |
-| `loan.audit.events` | All services | [[compliance/audit-logger]] | Compliance audit trail |
+
+| Topic                        | Producer                         | Consumer                                                                                    | Purpose                       |
+| ---------------------------- | -------------------------------- | ------------------------------------------------------------------------------------------- | ----------------------------- |
+| `loan.applications.inbound`  | [[architecture/api-gateway]]     | [[workflow/transaction-intake]]                                                             | Raw deal submissions          |
+| `loan.applications.enriched` | [[workflow/transaction-intake]]  | [[workflow/adjudication-engine]]                                                            | Validated &amp; enriched apps |
+| `loan.bureau.requests`       | [[workflow/adjudication-engine]] | [[equifax/equifax-integration]]                                                             | Bureau pull requests          |
+| `loan.bureau.responses`      | [[equifax/equifax-integration]]  | [[workflow/adjudication-engine]]                                                            | Bureau data responses         |
+| `loan.decisions.outbound`    | [[workflow/adjudication-engine]] | [[decisions/approval-workflow]], [[decisions/counter-offer]], [[decisions/decline-reasons]] | Final decisions               |
+| `loan.documents.generate`    | Decision services                | [[decisions/document-generation]]                                                           | Doc generation triggers       |
+| `loan.audit.events`          | All services                     | [[compliance/audit-logger]]                                                                 | Compliance audit trail        |
+
 
 > **Note:** The `loan.audit.events` topic consumer [[compliance/audit-logger]] is a planned but not-yet-implemented service. This is an intentionally broken wikilink.
 
@@ -40,7 +42,5 @@ Kafka lag monitoring triggers alerts when consumer lag exceeds 500 messages on a
 For reference, the current rate tiers that drive decisioning:
 
 ![[data/rate-sheet-2024-q4.csv]]
-
----
 
 #integration/dealer-api #integration/equifax #workflow/intake #workflow/adjudication
