@@ -1,97 +1,20 @@
 # VSCode Extension Package Ignore
+# Strict allowlist: ignore everything by default, then include only ship assets.
 
-# Source maps - CRITICAL: Exclude all source maps FIRST
-dist/**/*.map
-**/*.map
-*.map
+# Ignore everything
+**
 
-# Development and documentation files
-docs/**
-wiki/**
-prompts/**
-specs/**
-internal/**
-.specify/**
-marketplace-assets/**
-AGENTS.md
-CONTRIBUTING.md
-CODE_OF_CONDUCT.md
-KNOWN_ISSUES.md
-EULA.md
-PRIVACY_POLICY.md
-TERMS_OF_USE.md
-THIRD_PARTY_LICENSES.md
-TODOs.md
-
-# Development files
-src/**
-scripts/**
-temp/**
-test-docs/**
-coverage/**
-*.log
-*.vsix
-dist/*.vsix
-dist/**/*.vsix
-*.tsbuildinfo
-tsconfig.tsbuildinfo
-
-# Git
-.git/**
-.github/**
-.gitignore
-
-# Build configuration
-eslint.config.js
-.eslintrc.js
-.prettierrc
-.npmrc
-tsconfig.json
-jest.config.js
-
-# VS Code dev configuration
-.vscode/**
-
-# Node
-node_modules/**
-.npm-cache/**
-package-lock.json
-
-# Environment
-.env
-.env.local
-.env.*.local
-
-# OS files
-.DS_Store
-Thumbs.db
-Desktop.ini
-
-# Extension-specific temp files
-.md4h/**
-
-# AI coding assistant files
-.claude/**
-.windsurf/**
-.cursor/**
-.agent/**
-.gemini/**
-
-# Exclude test files and folders
-test_*
-test-*
-test_pasted/**
-
-# Include only essential files for marketplace
+# Include runtime bundle and required metadata
 !dist/**
-!README.md
-!LICENSE
 !package.json
+!README.md
 !CHANGELOG.md
+!LICENSE
+!LICENSE.txt
 !icon.png
 !demo.html
 
-# Exclude VSIX from package even if in dist/
-dist/*.vsix
+# Never package build maps and artifacts
+dist/**/*.map
 dist/**/*.vsix
 *.vsix
