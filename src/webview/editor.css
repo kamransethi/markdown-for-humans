@@ -677,6 +677,10 @@ body[data-theme="dark"] {
   line-height: 1.5;
 }
 
+.markdown-editor .ProseMirror > ul > li::marker {
+  color: var(--md-heading-primary-color);
+}
+
 /* Strip all p margin inside list items — they get spacing from `li { margin }` only */
 .markdown-editor li>p {
   margin-top: 0;
@@ -1466,7 +1470,14 @@ body[data-theme="dark"] .github-alert {
   min-width: 200px;
   padding: 10px 14px;
   font-size: 13px;
-  pointer-events: none;
+  pointer-events: auto;
+  max-height: min(70vh, 460px);
+  overflow-y: auto;
+}
+
+.wikilink-preview-tooltip__create {
+  margin-left: 8px;
+  cursor: pointer;
 }
 
 .wikilink-preview-tooltip__title {
@@ -1479,15 +1490,86 @@ body[data-theme="dark"] .github-alert {
 }
 
 .wikilink-preview-tooltip__body {
-  font-family: inherit;
   font-size: 12px;
   line-height: 1.5;
-  white-space: pre-wrap;
   word-break: break-word;
   margin: 0;
-  opacity: 0.85;
-  max-height: 180px;
-  overflow: hidden;
+  opacity: 0.9;
+}
+
+.wikilink-preview-tooltip__body p {
+  margin: 0 0 4px;
+}
+
+.wikilink-preview-tooltip__body h1,
+.wikilink-preview-tooltip__body h2,
+.wikilink-preview-tooltip__body h3 {
+  font-size: 13px;
+  font-weight: 600;
+  margin: 6px 0 2px;
+}
+
+.wikilink-preview-tooltip__body ul,
+.wikilink-preview-tooltip__body ol {
+  margin: 2px 0;
+  padding-left: 16px;
+}
+
+.wikilink-preview-tooltip__body li {
+  margin: 1px 0;
+}
+
+.wikilink-preview-tooltip__body code {
+  font-family: var(--md-mono-font, monospace);
+  font-size: 11px;
+  background: rgba(0, 0, 0, 0.06);
+  border-radius: 3px;
+  padding: 0 3px;
+}
+
+.wikilink-preview-tooltip__body table {
+  border-collapse: collapse;
+  font-size: 11px;
+  margin: 4px 0;
+}
+
+.wikilink-preview-tooltip__body th,
+.wikilink-preview-tooltip__body td {
+  border: 1px solid var(--md-dropdown-border, #ddd);
+  padding: 2px 6px;
+}
+
+.wikilink-preview-tooltip__body em {
+  opacity: 0.75;
+}
+
+.wikilink-preview-tooltip__body a {
+  color: var(--md-link-fg);
+  text-decoration: none;
+}
+
+.wikilink-preview-tooltip__refs-title {
+  margin-top: 8px;
+  margin-bottom: 4px;
+  font-size: 12px;
+  color: var(--md-muted);
+}
+
+.wikilink-preview-tooltip__refs-list {
+  margin: 0;
+  padding-left: 16px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.wikilink-preview-tooltip__ref-link {
+  color: var(--md-link-fg, #0969da);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.wikilink-preview-tooltip__ref-link:hover {
+  text-decoration: underline;
 }
 
 .wikilink-preview-tooltip--broken {

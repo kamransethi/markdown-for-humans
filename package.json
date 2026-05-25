@@ -94,21 +94,6 @@
         "icon": "$(layout-panel-justify)"
       },
       {
-        "command": "gptAiMarkdownEditor.outline.revealCurrent",
-        "title": "Outline: Reveal Current Heading",
-        "icon": "$(target)"
-      },
-      {
-        "command": "gptAiMarkdownEditor.outline.filter",
-        "title": "Outline: Filter Headings",
-        "icon": "$(search)"
-      },
-      {
-        "command": "gptAiMarkdownEditor.outline.clearFilter",
-        "title": "Outline: Clear Filter",
-        "icon": "$(close)"
-      },
-      {
         "command": "gptAiMarkdownEditor.openAttachmentsFolder",
         "title": "Open Attachments Folder"
       },
@@ -137,22 +122,7 @@
         "category": "Flux Flow"
       }
     ],
-    "views": {
-      "explorer": [
-        {
-          "id": "gptAiMarkdownEditorOutline",
-          "name": "Flux Flow Markdown Editor: Outline",
-          "when": "gptAiMarkdownEditor.isActive",
-          "icon": "$(layout-sidebar-right)"
-        },
-        {
-          "id": "gptAiMarkdownEditorBacklinks",
-          "name": "Flux Flow: Backlinks",
-          "when": "gptAiMarkdownEditor.knowledgeGraph.active",
-          "icon": "$(references)"
-        }
-      ]
-    },
+    "views": {},
     "menus": {
       "editor/title": [
         {
@@ -166,23 +136,6 @@
           "command": "gptAiMarkdownEditor.openFile",
           "when": "resourceExtname == .md",
           "group": "navigation"
-        }
-      ],
-      "view/title": [
-        {
-          "command": "gptAiMarkdownEditor.outline.revealCurrent",
-          "when": "view == gptAiMarkdownEditorOutline",
-          "group": "navigation@1"
-        },
-        {
-          "command": "gptAiMarkdownEditor.outline.filter",
-          "when": "view == gptAiMarkdownEditorOutline && !gptAiMarkdownEditor.outlineFilterActive",
-          "group": "navigation@2"
-        },
-        {
-          "command": "gptAiMarkdownEditor.outline.clearFilter",
-          "when": "view == gptAiMarkdownEditorOutline && gptAiMarkdownEditor.outlineFilterActive",
-          "group": "navigation@2"
         }
       ]
     },

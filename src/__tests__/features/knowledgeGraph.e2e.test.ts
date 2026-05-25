@@ -86,6 +86,15 @@ describe('FluxFlow Indexer — parseMarkdownFile', () => {
     expect(result.links[1].target).toBe('b');
   });
 
+  it('normalizes wiki-link path, alias, and heading anchor', () => {
+    const result = parseMarkdownFile(
+      'See [[dealership/dealer-network#onboarding|dealer onboarding]] for setup',
+      'test.md'
+    );
+    expect(result.links).toHaveLength(1);
+    expect(result.links[0].target).toBe('dealer-network');
+  });
+
   it('extracts inline tags', () => {
     const result = parseMarkdownFile('This is #important and #todo', 'test.md');
     expect(result.tags).toHaveLength(2);
@@ -373,6 +382,36 @@ describe('FluxFlow Knowledge Graph — end-to-end', () => {
     // Should NOT include alpha itself
     const selfRefs = backlinks.filter(b => b.sourcePath === 'notes/alpha.md');
     expect(selfRefs).toHaveLength(0);
+  });
+
+  it('Step 10b: getBacklinks resolves typed identifier when title differs from filename', () => {
+    const betaNoteId = database.upsertDocument('notes/beta-note.md', 'Beta Note', 'hash-beta-note');
+    const alpha = database.getDocumentByPath('notes/alpha.md')!;
+
+    database.insertLink(alpha.id, 'beta-note', 12, 'Reference [[beta-note]]');
+    database.resolveLinks();
+
+    const backlinks = database.getBacklinks('notes/beta-note.md');
+    expect(backlinks).toHaveLength(1);
+    expect(backlinks[0].sourcePath).toBe('notes/alpha.md');
+
+    // Keep baseline document count stable for downstream sequential tests.
+    database.deleteDocument('notes/beta-note.md');
+    void betaNoteId;
+  });
+
+  it('Step 10c: getBacklinks matches legacy stored wikilink path and alias', () => {
+    database.upsertDocument('dealership/dealer-network.md', 'Dealer Network', 'hash-dealer-network');
+    const alpha = database.getDocumentByPath('notes/alpha.md')!;
+
+    // Legacy malformed storage: path plus alias instead of normalized identifier.
+    database.insertLink(alpha.id, 'dealership/dealer-network|dealer-originated', 15, 'Ref link');
+
+    const backlinks = database.getBacklinks('dealership/dealer-network.md');
+    expect(backlinks).toHaveLength(1);
+    expect(backlinks[0].sourcePath).toBe('notes/alpha.md');
+
+    database.deleteDocument('dealership/dealer-network.md');
   });
 
   it('Step 11: inserts and retrieves tags', () => {

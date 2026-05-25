@@ -257,23 +257,57 @@ export class GraphDatabase {
     if (!doc) return [];
 
     const titleLower = doc.title.toLowerCase();
+    // Match by both display title and filename-derived identifier since
+    // wikilink targets are stored from typed identifiers (e.g. "beta-note").
+    const baseIdentifier = path.basename(docPath, path.extname(docPath)).toLowerCase();
     const rows = this.db!.exec(
-      `SELECT DISTINCT d.path, d.title, l.context, l.line_number
+      `SELECT DISTINCT d.path, d.title, l.context, l.line_number, l.target_title, l.target_id
        FROM links l
        JOIN documents d ON d.id = l.source_id
-       WHERE (l.target_title = ? OR l.target_id = ?)
+       WHERE (
+         l.target_title = ?
+         OR l.target_title = ?
+         OR l.target_id = ?
+         OR l.target_title LIKE ?
+         OR l.target_title LIKE ?
+       )
          AND d.id != ?
        ORDER BY d.path`,
-      [titleLower, doc.id, doc.id]
+      [titleLower, baseIdentifier, doc.id, `%/${baseIdentifier}%`, `${baseIdentifier}%`, doc.id]
     );
 
     if (!rows.length) return [];
-    return rows[0].values.map((row: any[]) => ({
-      sourcePath: row[0] as string,
-      sourceTitle: row[1] as string,
-      context: row[2] as string,
-      lineNumber: row[3] as number,
-    }));
+    const toNormalizedIdentifier = (raw: string): string => {
+      let value = raw.trim().toLowerCase();
+      const aliasIdx = value.indexOf('|');
+      if (aliasIdx !== -1) {
+        value = value.slice(0, aliasIdx).trim();
+      }
+      value = value.split('#')[0].trim();
+      if (!value) return '';
+      const base = path.basename(value);
+      return path.basename(base, path.extname(base)).trim().toLowerCase();
+    };
+
+    return rows[0].values
+      .filter((row: any[]) => {
+        const targetTitle = String(row[4] ?? '').toLowerCase();
+        const targetId = row[5] as number | null;
+        if (targetId === doc.id) {
+          return true;
+        }
+        if (targetTitle === titleLower || targetTitle === baseIdentifier) {
+          return true;
+        }
+        const normalized = toNormalizedIdentifier(targetTitle);
+        return normalized === titleLower || normalized === baseIdentifier;
+      })
+      .map((row: any[]) => ({
+        sourcePath: row[0] as string,
+        sourceTitle: row[1] as string,
+        context: row[2] as string,
+        lineNumber: row[3] as number,
+      }));
   }
 
   getUnlinkedReferences(docPath: string): BacklinkEntry[] {

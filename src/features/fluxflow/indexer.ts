@@ -8,7 +8,58 @@ import * as path from 'path';
 import type { ParsedDocument } from './types';
 
 const WIKI_LINK_REGEX = /\[\[([^\]]+)\]\]/g;
+const MARKDOWN_LINK_REGEX = /!?\[[^\]]*\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g;
 const INLINE_TAG_REGEX = /(?:^|\s)#([a-zA-Z][a-zA-Z0-9_/-]*)/g;
+
+function normalizeWikiLinkTarget(rawTarget: string): string | null {
+  let target = rawTarget.trim();
+  if (!target) return null;
+
+  const aliasIndex = target.indexOf('|');
+  if (aliasIndex !== -1) {
+    target = target.slice(0, aliasIndex).trim();
+  }
+
+  const clean = target.split('#')[0].trim();
+  if (!clean) return null;
+
+  const base = path.basename(clean);
+  const normalized = stripFileTitle(base).trim().toLowerCase();
+  return normalized || null;
+}
+
+function normalizeMarkdownLinkTarget(rawTarget: string): string | null {
+  let target = rawTarget.trim();
+  if (!target) return null;
+
+  if (target.startsWith('<') && target.endsWith('>')) {
+    target = target.slice(1, -1).trim();
+  }
+
+  const lower = target.toLowerCase();
+  if (
+    lower.startsWith('http://') ||
+    lower.startsWith('https://') ||
+    lower.startsWith('mailto:') ||
+    lower.startsWith('data:') ||
+    lower.startsWith('#')
+  ) {
+    return null;
+  }
+
+  try {
+    target = decodeURIComponent(target);
+  } catch {
+    // Keep original when URI decoding fails.
+  }
+
+  const clean = target.split('#')[0].split('?')[0].trim();
+  if (!clean) return null;
+
+  const base = path.basename(clean);
+  const normalized = stripFileTitle(base).trim().toLowerCase();
+  return normalized || null;
+}
 
 /**
  * Extract YAML frontmatter from markdown content.
@@ -84,8 +135,8 @@ export function parseMarkdownFile(content: string, filePath: string): ParsedDocu
     let match: RegExpExecArray | null;
     WIKI_LINK_REGEX.lastIndex = 0;
     while ((match = WIKI_LINK_REGEX.exec(line)) !== null) {
-      const target = match[1].trim();
-      if (!target) continue;
+      const normalizedTarget = normalizeWikiLinkTarget(match[1]);
+      if (!normalizedTarget) continue;
 
       const start = Math.max(0, match.index - 40);
       const end = Math.min(line.length, match.index + match[0].length + 40);
@@ -93,7 +144,25 @@ export function parseMarkdownFile(content: string, filePath: string): ParsedDocu
         (start > 0 ? '...' : '') + line.slice(start, end).trim() + (end < line.length ? '...' : '');
 
       links.push({
-        target: target.toLowerCase(),
+        target: normalizedTarget,
+        lineNumber: i + 1,
+        context,
+      });
+    }
+
+    // Extract standard markdown links/images [text](target) and ![alt](target)
+    MARKDOWN_LINK_REGEX.lastIndex = 0;
+    while ((match = MARKDOWN_LINK_REGEX.exec(line)) !== null) {
+      const normalizedTarget = normalizeMarkdownLinkTarget(match[1]);
+      if (!normalizedTarget) continue;
+
+      const start = Math.max(0, match.index - 40);
+      const end = Math.min(line.length, match.index + match[0].length + 40);
+      const context =
+        (start > 0 ? '...' : '') + line.slice(start, end).trim() + (end < line.length ? '...' : '');
+
+      links.push({
+        target: normalizedTarget,
         lineNumber: i + 1,
         context,
       });

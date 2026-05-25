@@ -13,7 +13,6 @@ import { parseDocumentFile } from './indexer';
 import { chunkMarkdown } from './chunker';
 
 import { FluxFlowWatcher } from './watcher';
-import { BacklinksViewProvider } from './backlinksView';
 import { registerFluxFlowCommands } from './commands';
 import { openChatPanel } from './chatPanel';
 import { createEmbeddingEngine, type EmbeddingEngine } from './embeddingEngine';
@@ -21,7 +20,6 @@ import { VectorStore } from './vectorStore';
 
 let database: GraphDatabase | null = null;
 let watcher: FluxFlowWatcher | null = null;
-let backlinksView: BacklinksViewProvider | null = null;
 let vectorStore: VectorStore | null = null;
 let embeddingEngine: EmbeddingEngine | null = null;
 let embeddingStatus: 'ready' | 'server-unavailable' | 'model-missing' = 'server-unavailable';
@@ -41,6 +39,11 @@ export interface WikilinkDocument {
   workspacePath: string;
 }
 
+export interface WikilinkBacklinkSummary {
+  sourcePath: string;
+  sourceTitle: string;
+}
+
 function notifyWikilinkChange(): void {
   for (const cb of wikilinkChangeCallbacks) {
     cb();
@@ -56,7 +59,11 @@ async function indexMarkdownFileForWikilinks(
     const content = await fs.promises.readFile(fsPath, 'utf-8');
     const relPath = path.relative(workspacePath, fsPath).split(path.sep).join('/');
     const parsed = parseDocumentFile(content, relPath);
-    db.upsertDocument(relPath, parsed.title, '');
+    const docId = db.upsertDocument(relPath, parsed.title, '');
+    db.clearLinksForDocument(docId);
+    for (const link of parsed.links) {
+      db.insertLink(docId, link.target, link.lineNumber, link.context);
+    }
   } catch {
     // Skip unreadable files
   }
@@ -73,6 +80,7 @@ async function indexAllMarkdownForWikilinks(
   for (const fileUri of mdFiles) {
     await indexMarkdownFileForWikilinks(db, workspacePath, fileUri.fsPath);
   }
+  db.resolveLinks();
   db.saveNow();
 }
 
@@ -186,6 +194,23 @@ export function resolveWikilinkPath(
   identifier: string,
   workspacePath?: string
 ): string | undefined {
+  const normalizeIdentifier = (raw: string): string => {
+    let normalized = raw.trim();
+    const aliasIndex = normalized.indexOf('|');
+    if (aliasIndex !== -1) {
+      normalized = normalized.slice(0, aliasIndex);
+    }
+    const anchorIndex = normalized.indexOf('#');
+    if (anchorIndex !== -1) {
+      normalized = normalized.slice(0, anchorIndex);
+    }
+    normalized = normalized.replace(/\\/g, '/').replace(/^\.\//, '').replace(/^\//, '');
+    if (normalized.toLowerCase().endsWith('.md')) {
+      normalized = normalized.slice(0, -3);
+    }
+    return normalized.toLowerCase();
+  };
+
   const foldersToSearch: Array<[string, GraphDatabase]> = workspacePath
     ? (
         [[workspacePath, wikilinkDatabases.get(workspacePath)!]] as Array<
@@ -194,7 +219,10 @@ export function resolveWikilinkPath(
       ).filter((pair): pair is [string, GraphDatabase] => !!pair[1])
     : Array.from(wikilinkDatabases.entries());
 
-  const lower = identifier.toLowerCase();
+  const lower = normalizeIdentifier(identifier);
+  if (!lower) {
+    return undefined;
+  }
 
   for (const [folder, db] of foldersToSearch) {
     const docs = db.getAllDocuments();
@@ -225,6 +253,37 @@ export function onWikilinkIndexChange(callback: () => void): vscode.Disposable {
         wikilinkChangeCallbacks.splice(idx, 1);
       }
     },
+  };
+}
+
+/**
+ * Get backlinks for an indexed document path in a given workspace.
+ */
+export function getWikilinkBacklinks(
+  relativePath: string,
+  workspacePath: string,
+  limit: number = 10
+): { total: number; sources: WikilinkBacklinkSummary[] } {
+  const db = wikilinkDatabases.get(workspacePath);
+  if (!db) {
+    return { total: 0, sources: [] };
+  }
+
+  const backlinks = db.getBacklinks(relativePath);
+  const deduped = new Map<string, WikilinkBacklinkSummary>();
+  for (const entry of backlinks) {
+    if (!deduped.has(entry.sourcePath)) {
+      deduped.set(entry.sourcePath, {
+        sourcePath: entry.sourcePath,
+        sourceTitle: entry.sourceTitle,
+      });
+    }
+  }
+
+  const all = Array.from(deduped.values());
+  return {
+    total: all.length,
+    sources: all.slice(0, Math.max(0, limit)),
   };
 }
 
@@ -337,40 +396,7 @@ export async function initialize(_context: vscode.ExtensionContext): Promise<voi
   // initializeForWikilinks() can re-use it instead of opening a duplicate.
   wikilinkDatabases.set(workspacePath, database);
 
-  // 2. Register Backlinks TreeView
-  backlinksView = new BacklinksViewProvider(
-    workspacePath,
-    docPath => database!.getBacklinks(docPath),
-    docPath => database!.getUnlinkedReferences(docPath)
-  );
-
-  const treeView = vscode.window.createTreeView('gptAiMarkdownEditorBacklinks', {
-    treeDataProvider: backlinksView,
-    showCollapseAll: true,
-  });
-  disposables.push(treeView);
-
-  // 3. Track active editor to update backlinks
-  disposables.push(
-    vscode.window.onDidChangeActiveTextEditor(editor => {
-      if (!backlinksView) return;
-      if (
-        editor &&
-        editor.document.uri.scheme === 'file' &&
-        editor.document.languageId === 'markdown'
-      ) {
-        const relPath = path
-          .relative(workspacePath, editor.document.uri.fsPath)
-          .split(path.sep)
-          .join('/');
-        backlinksView.updateActiveDocument(relPath);
-      } else {
-        backlinksView.updateActiveDocument(null);
-      }
-    })
-  );
-
-  // 4. Start file watcher
+  // 2. Start file watcher
   const fileTypes = getConfiguredGraphFileTypes();
   const watcherPatterns = createGraphWatcherPatterns(fileTypes);
   watcher = new FluxFlowWatcher(
@@ -387,21 +413,18 @@ export async function initialize(_context: vscode.ExtensionContext): Promise<voi
       }
       database?.deleteDocument(relPath);
       database?.scheduleSave();
-      if (backlinksView) {
-        backlinksView.updateActiveDocument(backlinksView.currentDocPath);
-      }
     }
   );
   watcher.start();
   disposables.push(watcher);
 
-  // 6. Run initial full index
+  // 4. Run initial full index
   await fullIndex(workspacePath);
 
-  // 7. Initialize semantic search (local AI embeddings)
+  // 5. Initialize semantic search (local AI embeddings)
   await reinitializeEmbeddings();
 
-  // 8. Listen for setting changes
+  // 6. Listen for setting changes
   disposables.push(
     vscode.workspace.onDidChangeConfiguration(e => {
       if (
@@ -584,10 +607,6 @@ function indexSingleFile(workspacePath: string, relPath: string): void {
       console.error('[FluxFlow] Background embedding error:', err)
     );
   }
-
-  if (backlinksView) {
-    backlinksView.updateActiveDocument(backlinksView.currentDocPath);
-  }
 }
 
 /**
@@ -734,7 +753,6 @@ export function deactivate(): void {
   }
   disposables = [];
   watcher = null;
-  backlinksView = null;
   vectorStore?.save();
   vectorStore = null;
   embeddingEngine = null;

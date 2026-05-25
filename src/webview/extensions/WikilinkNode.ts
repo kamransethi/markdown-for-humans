@@ -273,7 +273,7 @@ export const WikilinkNode = Node.create({
           (win.__wikilinkHoverId as unknown) = null;
           document.getElementById('wikilink-preview-tooltip')?.remove();
           win.__wikilinkDismissTimer = null;
-        }, 200);
+        }, 1200);
       });
 
       return { dom };

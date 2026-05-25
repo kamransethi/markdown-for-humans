@@ -7,7 +7,6 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as os from 'os';
-import { outlineViewProvider } from '../features/outlineView';
 import {
   setActiveWebviewPanel,
   getActiveWebviewPanel,
@@ -159,14 +158,37 @@ function extractWikilinkPreviewExcerpt(markdown: string): string {
   // Strip YAML frontmatter (---...--- block at top)
   let content = markdown.replace(/^---[\s\S]*?---\s*\n?/, '');
   // Strip markdown image syntax
-  content = content.replace(/!\[[^\]]*\]\([^)]*\)/g, '');
-  // Collect first 10 non-empty lines
-  const lines = content
+  content = content.replace(/!\[[^\]]*\]\([^)]*\)/g, '').trim();
+  // Strip leading H1/H2 heading (note title — displayed separately in the tooltip title bar)
+  content = content.replace(/^#{1,2}[^\n]+\n?/, '').trim();
+  // Strip lines that consist only of hashtag tokens (Foam inline tags, e.g. #status/approved)
+  content = content
     .split('\n')
-    .map(l => l.trimEnd())
-    .filter(l => l.trim().length > 0)
-    .slice(0, 10);
-  return lines.join('\n');
+    .filter(line => !/^(\s*#[a-zA-Z0-9_/.-]+\s*)+$/.test(line))
+    .join('\n')
+    .trim();
+  // Render wikilinks as plain text: [[target|alias]] → alias, [[target]] → target
+  content = content.replace(/\[\[([^\]|]+)\|([^\]]+)\]\]/g, '$2');
+  content = content.replace(/\[\[([^\]]+)\]\]/g, '$1');
+  // Paragraph-based 16-line truncation (mirrors Foam's getExcerpt + formatMarkdownTooltip)
+  const LINES_LIMIT = 16;
+  const OFFSET_LINES_LIMIT = 5;
+  const paragraphs = content.replace(/\r\n/g, '\n').split('\n\n');
+  const excerptParts: string[] = [];
+  let lines = 0;
+  for (const paragraph of paragraphs) {
+    const n = paragraph.split('\n').length;
+    if (lines > LINES_LIMIT || lines + n - LINES_LIMIT > OFFSET_LINES_LIMIT) {
+      break;
+    }
+    excerptParts.push(paragraph);
+    lines = lines + n + 1;
+  }
+  const excerptStr = excerptParts.join('\n\n');
+  const totalLines = content.split('\n').length;
+  const diffLines = totalLines - lines;
+  const ellipsis = diffLines > 0 ? `\n\n[...] *(+ ${diffLines} lines)*` : '';
+  return `${excerptStr}${ellipsis}`;
 }
 
 /**
@@ -500,13 +522,11 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
         break;
       }
       case MessageType.OUTLINE_UPDATED: {
-        const outline = (message.outline || []) as any[];
-        outlineViewProvider.setOutline(outline as any);
         break;
       }
       case MessageType.SELECTION_CHANGE: {
         const pos = message.pos as number | undefined;
-        outlineViewProvider.setActiveSelection(typeof pos === 'number' ? pos : null);
+        void pos;
         // Track selected text so Copilot and other extensions can access it
         const selText = (message.selectedText as string) ?? '';
         setSelectedText(selText);
@@ -601,7 +621,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
           vscode.window.showInformationMessage(`Note "${identifier}" not found`);
           return;
         }
-        await vscode.commands.executeCommand('vscode.openWith', uri, 'gptAiMarkdownEditor');
+        await vscode.commands.executeCommand('vscode.openWith', uri, 'gptAiMarkdownEditor.editor');
         break;
       }
 
@@ -614,20 +634,29 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
             identifier,
             excerpt: null,
             broken: true,
+            references: { total: 0, sources: [] },
           });
           break;
         }
+        const references = foamIntegration.getWikilinkReferences(identifier, document.uri, 10);
         try {
           const bytes = await vscode.workspace.fs.readFile(uri);
           const raw = Buffer.from(bytes).toString('utf8');
           const excerpt = extractWikilinkPreviewExcerpt(raw);
-          void webview.postMessage({ type: 'wikilinkPreview', identifier, excerpt, broken: false });
+          void webview.postMessage({
+            type: 'wikilinkPreview',
+            identifier,
+            excerpt,
+            broken: false,
+            references,
+          });
         } catch {
           void webview.postMessage({
             type: 'wikilinkPreview',
             identifier,
             excerpt: null,
             broken: true,
+            references,
           });
         }
         break;
@@ -651,7 +680,11 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
           const content = Buffer.from(`# ${newIdentifier}\n`);
           await vscode.workspace.fs.writeFile(newFileUri, content);
         }
-        await vscode.commands.executeCommand('vscode.openWith', newFileUri, 'gptAiMarkdownEditor');
+        await vscode.commands.executeCommand(
+          'vscode.openWith',
+          newFileUri,
+          'gptAiMarkdownEditor.editor'
+        );
         break;
       }
     }

@@ -60,6 +60,7 @@ export const SETTING_KEYS = [
   'pandocTemplatePath',
   'customPromptsFile',
   'knowledgeGraph.enabled',
+  'knowledgeGraph.indexedFileTypes',
   'knowledgeGraph.dataDir',
   'knowledgeGraph.embeddingModel',
   'knowledgeGraph.rag.topK',

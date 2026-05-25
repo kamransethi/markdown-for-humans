@@ -28,6 +28,7 @@ import StarterKit from '@tiptap/starter-kit';
 import { Markdown } from '@tiptap/markdown';
 import Paragraph from '@tiptap/extension-paragraph';
 import { Table, TableRow, TableHeader, TableCell } from '@tiptap/extension-table';
+import { marked } from 'marked';
 import {
   WikilinkNode,
   setWikilinkNoteIndex,
@@ -56,10 +57,49 @@ interface WikilinkNote {
 
 const capturedMessages: unknown[] = [];
 
-const MOCK_PREVIEWS: Record<string, { excerpt: string; broken: boolean }> = {
-  'active-note': { excerpt: 'This is a detailed preview of the Active Note content.\n\nSecond paragraph of the note.', broken: false },
+const MOCK_PREVIEWS: Record<
+  string,
+  {
+    excerpt: string;
+    broken: boolean;
+    references?: {
+      total: number;
+      sources: Array<{ path: string; title: string }>;
+    };
+  }
+> = {
+  'active-note': {
+    excerpt: '## Active Note\n\nThis is a detailed preview of the Active Note content.\n\nSecond paragraph of the note.\n\n[...] *(+ 8 lines)*',
+    broken: false,
+    references: {
+      total: 2,
+      sources: [
+        { path: 'notes/project-plan.md', title: 'Project Plan' },
+        { path: 'notes/today.md', title: 'Today' },
+      ],
+    },
+  },
   'another-note': { excerpt: 'Preview content for Another Note.', broken: false },
   'missing-note': { excerpt: '', broken: true },
+  'dealership/dealer-network': {
+    excerpt: '## Dealer Network\n\nThe dealer network is the primary origination channel for the auto loan platform. Dealers submit applications through the API Gateway or via legacy flat-file upload.\n\n## Onboarding\n\nNew dealers go through a structured onboarding process:\n\n1. **Application** — Dealer submits business license, insurance, and bank details\n2. **Background Check** — KYC/AML verification of dealership principals\n3. **Tier Assignment** — Initial tier (1, 2, or 3) based on volume commitment and financial stability\n\n[...] *(+ 50 lines)*',
+    broken: false,
+    references: {
+      total: 12,
+      sources: [
+        { path: 'architecture/api-gateway.md', title: 'API Gateway' },
+        { path: 'workflow/loan-orchestration.md', title: 'Loan Orchestration' },
+        { path: 'workflow/stipulation-checklist.md', title: 'Stipulation Checklist' },
+        { path: 'decisions/approval-workflow.md', title: 'Approval Workflow' },
+        { path: 'data/dealer-codes.txt', title: 'Dealer Codes' },
+        { path: 'data/error-codes.txt', title: 'Error Codes' },
+        { path: 'reports/monthly-volume.md', title: 'Monthly Volume Report' },
+        { path: 'reports/tier-analysis.md', title: 'Tier Analysis' },
+        { path: 'compliance/aml-review.md', title: 'AML Review' },
+        { path: 'onboarding/new-dealer-guide.md', title: 'New Dealer Guide' },
+      ],
+    },
+  },
 };
 
 (window as unknown as Record<string, unknown>).vscode = {
@@ -72,7 +112,10 @@ const MOCK_PREVIEWS: Record<string, { excerpt: string; broken: boolean }> = {
       const id = m.identifier;
       const preview = MOCK_PREVIEWS[id] ?? { excerpt: '', broken: true };
       // Simulate the extension host response via the wikilinkPreview handler
-      setTimeout(() => handleWikilinkPreview(id, preview.excerpt || null, preview.broken), 0);
+      setTimeout(
+        () => handleWikilinkPreview(id, preview.excerpt || null, preview.broken, preview.references),
+        0
+      );
     }
   },
 };
@@ -84,7 +127,8 @@ const MOCK_PREVIEWS: Record<string, { excerpt: string; broken: boolean }> = {
 function handleWikilinkPreview(
   identifier: string,
   excerpt: string | null,
-  broken: boolean
+  broken: boolean,
+  references?: { total: number; sources: Array<{ path: string; title: string }> }
 ): void {
   const win = window as unknown as Record<string, unknown>;
   if (win.__wikilinkHoverId !== identifier) return;
@@ -107,10 +151,31 @@ function handleWikilinkPreview(
       `<span class="wikilink-preview-tooltip__broken">Note not found: ${displayTitle}</span>` +
       `<button class="wikilink-preview-tooltip__create" data-id="${identifier}">Create page</button>`;
   } else {
-    const safe = excerpt.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    // Render raw markdown to HTML (mirrors editor.ts wikilinkPreview case)
+    const rendered = marked(excerpt) as string;
+    const refsHtml =
+      references && references.total > 0
+        ? `<div class="wikilink-preview-tooltip__refs-title">Also referenced in ${references.total} ${references.total === 1 ? 'note' : 'notes'}:</div>` +
+          `<ul class="wikilink-preview-tooltip__refs-list">` +
+          references.sources
+            .map(source => {
+              const safeTitle = source.title
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+              const safePath = source.path
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+              return `<li><a class="wikilink-preview-tooltip__ref-link" data-path="${safePath}" href="#">${safeTitle}</a></li>`;
+            })
+            .join('') +
+          `</ul>`
+        : '';
     tooltip.innerHTML =
       `<div class="wikilink-preview-tooltip__title">${displayTitle}</div>` +
-      `<pre class="wikilink-preview-tooltip__body">${safe}</pre>`;
+      `<div class="wikilink-preview-tooltip__body">${rendered}</div>` +
+      refsHtml;
   }
 
   tooltip.style.left = `${rect.left}px`;
@@ -124,7 +189,7 @@ function handleWikilinkPreview(
     win.__wikilinkDismissTimer = setTimeout(() => {
       tooltip.remove();
       win.__wikilinkDismissTimer = null;
-    }, 200);
+    }, 350);
   });
 
   document.body.appendChild(tooltip);
@@ -137,6 +202,7 @@ function handleWikilinkPreview(
 const DEFAULT_NOTES: WikilinkNote[] = [
   { identifier: 'active-note', title: 'Active Note', fsPath: '/vault/active-note.md', aliases: [], sections: [] },
   { identifier: 'another-note', title: 'Another Note', fsPath: '/vault/another-note.md', aliases: [], sections: [] },
+  { identifier: 'dealership/dealer-network', title: 'Dealer Network', fsPath: '/vault/dealership/dealer-network.md', aliases: [], sections: [] },
 ];
 
 function seedNoteIndex(notes: WikilinkNote[]): void {

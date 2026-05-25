@@ -8,7 +8,6 @@ import * as vscode from 'vscode';
 import { MarkdownEditorProvider } from './editor/MarkdownEditorProvider';
 import { WordCountFeature } from './features/wordCount';
 import { getActiveWebviewPanel, getSelectedText, getActiveDocumentUri } from './activeWebview';
-import { outlineViewProvider } from './features/outlineView';
 import { MessageType } from './shared/messageTypes';
 import { getProviderAvailabilityCached } from './features/llm/providerAvailability';
 import { handleProviderError } from './features/llm/providerErrorMessages';
@@ -90,14 +89,6 @@ export function activate(context: vscode.ExtensionContext) {
       }
     })
   );
-
-  // Register outline tree view provider (Explorer)
-  const outlineTreeView = vscode.window.createTreeView('gptAiMarkdownEditorOutline', {
-    treeDataProvider: outlineViewProvider,
-    showCollapseAll: true,
-  });
-  outlineViewProvider.setTreeView(outlineTreeView);
-  context.subscriptions.push(outlineTreeView);
 
   // Register Knowledge Graph commands (always, so "command not found" never occurs)
   FluxFlowGraph.registerCommands(context);
@@ -206,24 +197,6 @@ export function activate(context: vscode.ExtensionContext) {
       if (panel) {
         panel.webview.postMessage({ type: MessageType.NAVIGATE_TO_HEADING, pos });
       }
-    })
-  );
-
-  context.subscriptions.push(
-    vscode.commands.registerCommand('gptAiMarkdownEditor.outline.revealCurrent', () => {
-      outlineViewProvider.revealActive(outlineTreeView);
-    })
-  );
-
-  context.subscriptions.push(
-    vscode.commands.registerCommand('gptAiMarkdownEditor.outline.filter', () => {
-      outlineViewProvider.showFilterInput();
-    })
-  );
-
-  context.subscriptions.push(
-    vscode.commands.registerCommand('gptAiMarkdownEditor.outline.clearFilter', () => {
-      outlineViewProvider.clearFilter();
     })
   );
 

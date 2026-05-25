@@ -1869,10 +1869,14 @@ window.addEventListener('message', (event: MessageEvent) => {
         break;
       }
       case 'wikilinkPreview': {
-        const { identifier, excerpt, broken } = message as unknown as {
+        const { identifier, excerpt, broken, references } = message as unknown as {
           identifier: string;
           excerpt: string | null;
           broken: boolean;
+          references?: {
+            total: number;
+            sources: Array<{ path: string; title: string }>;
+          };
         };
         // Only show if the user is still hovering the same link
         const win = window as unknown as Record<string, unknown>;
@@ -1896,10 +1900,32 @@ window.addEventListener('message', (event: MessageEvent) => {
             `<span class="wikilink-preview-tooltip__broken">Note not found: ${displayTitle}</span>` +
             `<button class="wikilink-preview-tooltip__create" data-id="${identifier}">Create page</button>`;
         } else {
-          const safe = excerpt.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+          // Render raw markdown to HTML (frontmatter already stripped by host)
+          const rendered = markedInstance(excerpt) as string;
+          const refs = references;
+          const refsHtml =
+            refs && refs.total > 0
+              ? `<div class="wikilink-preview-tooltip__refs-title">Also referenced in ${refs.total} ${refs.total === 1 ? 'note' : 'notes'}:</div>` +
+                `<ul class="wikilink-preview-tooltip__refs-list">` +
+                refs.sources
+                  .map(source => {
+                    const safeTitle = source.title
+                      .replace(/&/g, '&amp;')
+                      .replace(/</g, '&lt;')
+                      .replace(/>/g, '&gt;');
+                    const safePath = source.path
+                      .replace(/&/g, '&amp;')
+                      .replace(/</g, '&lt;')
+                      .replace(/>/g, '&gt;');
+                    return `<li><a class="wikilink-preview-tooltip__ref-link" data-path="${safePath}" href="#">${safeTitle}</a></li>`;
+                  })
+                  .join('') +
+                `</ul>`
+              : '';
           tooltip.innerHTML =
             `<div class="wikilink-preview-tooltip__title">${displayTitle}</div>` +
-            `<pre class="wikilink-preview-tooltip__body">${safe}</pre>`;
+            `<div class="wikilink-preview-tooltip__body">${rendered}</div>` +
+            refsHtml;
         }
         tooltip.style.left = `${rect.left}px`;
         tooltip.style.top = `${rect.bottom + 6}px`;
@@ -1915,22 +1941,47 @@ window.addEventListener('message', (event: MessageEvent) => {
           win.__wikilinkDismissTimer = setTimeout(() => {
             tooltip.remove();
             win.__wikilinkDismissTimer = null;
-          }, 200);
+          }, 350);
         });
-        // Create page button
+        // Create page button + ref link clicks
         tooltip.addEventListener('click', e => {
+          const api = (window as unknown as { vscode?: { postMessage: (m: unknown) => void } })
+            .vscode;
           const btn = (e.target as HTMLElement).closest<HTMLElement>(
             '.wikilink-preview-tooltip__create'
           );
           if (btn) {
             const id = btn.dataset.id ?? identifier;
-            const api = (window as unknown as { vscode?: { postMessage: (m: unknown) => void } })
-              .vscode;
             api?.postMessage({ type: 'createWikilink', identifier: id });
+            tooltip.remove();
+            return;
+          }
+          const refLink = (e.target as HTMLElement).closest<HTMLElement>(
+            '.wikilink-preview-tooltip__ref-link'
+          );
+          if (refLink) {
+            e.preventDefault();
+            const refPath = refLink.dataset.path;
+            if (refPath) {
+              api?.postMessage({ type: 'openWikilink', identifier: refPath });
+            }
             tooltip.remove();
           }
         });
         document.body.appendChild(tooltip);
+        // Keep tooltip within viewport so long reference sections remain reachable.
+        const padding = 8;
+        const tipRect = tooltip.getBoundingClientRect();
+        let nextLeft = rect.left;
+        let nextTop = rect.bottom + 6;
+        if (tipRect.right > window.innerWidth - padding) {
+          nextLeft = Math.max(padding, window.innerWidth - tipRect.width - padding);
+        }
+        if (tipRect.bottom > window.innerHeight - padding) {
+          nextTop = Math.max(padding, rect.top - tipRect.height - 6);
+        }
+        tooltip.style.left = `${nextLeft}px`;
+        tooltip.style.top = `${nextTop}px`;
         break;
       }
       default:

@@ -27388,7 +27388,7 @@ Please report this to https://github.com/markedjs/marked.`, e) {
             win.__wikilinkHoverId = null;
             document.getElementById("wikilink-preview-tooltip")?.remove();
             win.__wikilinkDismissTimer = null;
-          }, 200);
+          }, 1200);
         });
         return { dom };
       };
@@ -27929,9 +27929,38 @@ Please report this to https://github.com/markedjs/marked.`, e) {
   // src/__tests__/playwright/harness/wikilinks-harness.ts
   var capturedMessages = [];
   var MOCK_PREVIEWS = {
-    "active-note": { excerpt: "This is a detailed preview of the Active Note content.\n\nSecond paragraph of the note.", broken: false },
+    "active-note": {
+      excerpt: "## Active Note\n\nThis is a detailed preview of the Active Note content.\n\nSecond paragraph of the note.\n\n[...] *(+ 8 lines)*",
+      broken: false,
+      references: {
+        total: 2,
+        sources: [
+          { path: "notes/project-plan.md", title: "Project Plan" },
+          { path: "notes/today.md", title: "Today" }
+        ]
+      }
+    },
     "another-note": { excerpt: "Preview content for Another Note.", broken: false },
-    "missing-note": { excerpt: "", broken: true }
+    "missing-note": { excerpt: "", broken: true },
+    "dealership/dealer-network": {
+      excerpt: "## Dealer Network\n\nThe dealer network is the primary origination channel for the auto loan platform. Dealers submit applications through the API Gateway or via legacy flat-file upload.\n\n## Onboarding\n\nNew dealers go through a structured onboarding process:\n\n1. **Application** \u2014 Dealer submits business license, insurance, and bank details\n2. **Background Check** \u2014 KYC/AML verification of dealership principals\n3. **Tier Assignment** \u2014 Initial tier (1, 2, or 3) based on volume commitment and financial stability\n\n[...] *(+ 50 lines)*",
+      broken: false,
+      references: {
+        total: 12,
+        sources: [
+          { path: "architecture/api-gateway.md", title: "API Gateway" },
+          { path: "workflow/loan-orchestration.md", title: "Loan Orchestration" },
+          { path: "workflow/stipulation-checklist.md", title: "Stipulation Checklist" },
+          { path: "decisions/approval-workflow.md", title: "Approval Workflow" },
+          { path: "data/dealer-codes.txt", title: "Dealer Codes" },
+          { path: "data/error-codes.txt", title: "Error Codes" },
+          { path: "reports/monthly-volume.md", title: "Monthly Volume Report" },
+          { path: "reports/tier-analysis.md", title: "Tier Analysis" },
+          { path: "compliance/aml-review.md", title: "AML Review" },
+          { path: "onboarding/new-dealer-guide.md", title: "New Dealer Guide" }
+        ]
+      }
+    }
   };
   window.vscode = {
     postMessage(msg) {
@@ -27940,11 +27969,14 @@ Please report this to https://github.com/markedjs/marked.`, e) {
       if (m2.type === "getWikilinkPreview") {
         const id = m2.identifier;
         const preview = MOCK_PREVIEWS[id] ?? { excerpt: "", broken: true };
-        setTimeout(() => handleWikilinkPreview(id, preview.excerpt || null, preview.broken), 0);
+        setTimeout(
+          () => handleWikilinkPreview(id, preview.excerpt || null, preview.broken, preview.references),
+          0
+        );
       }
     }
   };
-  function handleWikilinkPreview(identifier, excerpt, broken) {
+  function handleWikilinkPreview(identifier, excerpt, broken, references) {
     const win = window;
     if (win.__wikilinkHoverId !== identifier) return;
     document.getElementById("wikilink-preview-tooltip")?.remove();
@@ -27958,8 +27990,13 @@ Please report this to https://github.com/markedjs/marked.`, e) {
     if (broken || !excerpt) {
       tooltip.innerHTML = `<span class="wikilink-preview-tooltip__broken">Note not found: ${displayTitle}</span><button class="wikilink-preview-tooltip__create" data-id="${identifier}">Create page</button>`;
     } else {
-      const safe = excerpt.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-      tooltip.innerHTML = `<div class="wikilink-preview-tooltip__title">${displayTitle}</div><pre class="wikilink-preview-tooltip__body">${safe}</pre>`;
+      const rendered = g(excerpt);
+      const refsHtml = references && references.total > 0 ? `<div class="wikilink-preview-tooltip__refs-title">Also referenced in ${references.total} ${references.total === 1 ? "note" : "notes"}:</div><ul class="wikilink-preview-tooltip__refs-list">` + references.sources.map((source) => {
+        const safeTitle = source.title.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        const safePath = source.path.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        return `<li><a class="wikilink-preview-tooltip__ref-link" data-path="${safePath}" href="#">${safeTitle}</a></li>`;
+      }).join("") + `</ul>` : "";
+      tooltip.innerHTML = `<div class="wikilink-preview-tooltip__title">${displayTitle}</div><div class="wikilink-preview-tooltip__body">${rendered}</div>` + refsHtml;
     }
     tooltip.style.left = `${rect.left}px`;
     tooltip.style.top = `${rect.bottom + 6}px`;
@@ -27974,13 +28011,14 @@ Please report this to https://github.com/markedjs/marked.`, e) {
       win.__wikilinkDismissTimer = setTimeout(() => {
         tooltip.remove();
         win.__wikilinkDismissTimer = null;
-      }, 200);
+      }, 350);
     });
     document.body.appendChild(tooltip);
   }
   var DEFAULT_NOTES = [
     { identifier: "active-note", title: "Active Note", fsPath: "/vault/active-note.md", aliases: [], sections: [] },
-    { identifier: "another-note", title: "Another Note", fsPath: "/vault/another-note.md", aliases: [], sections: [] }
+    { identifier: "another-note", title: "Another Note", fsPath: "/vault/another-note.md", aliases: [], sections: [] },
+    { identifier: "dealership/dealer-network", title: "Dealer Network", fsPath: "/vault/dealership/dealer-network.md", aliases: [], sections: [] }
   ];
   function seedNoteIndex(notes) {
     const ids = notes.map((n) => n.identifier);

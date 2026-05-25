@@ -144,9 +144,9 @@ test.describe('Wikilink Visual & Integration Suite', () => {
     expect(box).not.toBeNull();
     expect(box!.width).toBeGreaterThanOrEqual(240);
 
-    // Should show the two pre-seeded notes
+    // Should show the three pre-seeded notes
     const items = dropdown.locator('.wikilink-suggestion__item');
-    await expect(items).toHaveCount(2);
+    await expect(items).toHaveCount(3);
     await expect(items.first()).toContainText('Active Note');
     await expect(items.nth(1)).toContainText('Another Note');
 
@@ -195,7 +195,7 @@ test.describe('Wikilink Visual & Integration Suite', () => {
     await expect(link).toBeVisible();
 
     // Hover and wait for the 350ms timer + mock response
-    await link.hover();
+    await link.dispatchEvent('mouseenter');
     await page.waitForTimeout(600);
 
     const tooltip = page.locator('#wikilink-preview-tooltip');
@@ -208,6 +208,15 @@ test.describe('Wikilink Visual & Integration Suite', () => {
     // Body should contain the mock preview excerpt
     const body = tooltip.locator('.wikilink-preview-tooltip__body');
     await expect(body).toContainText('detailed preview');
+
+    // Foam-style references section should appear when preview includes backlinks
+    const refsTitle = tooltip.locator('.wikilink-preview-tooltip__refs-title');
+    await expect(refsTitle).toContainText('Also referenced in 2 notes');
+    const refs = tooltip.locator('.wikilink-preview-tooltip__refs-list li');
+    await expect(refs).toHaveCount(2);
+    // Refs should be clickable links
+    const refLinks = tooltip.locator('.wikilink-preview-tooltip__refs-list .wikilink-preview-tooltip__ref-link');
+    await expect(refLinks).toHaveCount(2);
 
     // Not in broken state
     await expect(tooltip).not.toHaveClass(/wikilink-preview-tooltip--broken/);
@@ -224,7 +233,7 @@ test.describe('Wikilink Visual & Integration Suite', () => {
     const link = page.locator('[data-wikilink-id="missing-note"]');
     await expect(link).toBeVisible();
 
-    await link.hover();
+    await link.dispatchEvent('mouseenter');
     await page.waitForTimeout(600);
 
     const tooltip = page.locator('#wikilink-preview-tooltip');
@@ -241,6 +250,46 @@ test.describe('Wikilink Visual & Integration Suite', () => {
     await expect(createBtn).toBeVisible();
 
     await expect(tooltip).toHaveScreenshot('tc-vis-006-hover-tooltip-broken.png');
+  });
+
+  // -------------------------------------------------------------------------
+  // TC-VIS-005-DEALER: Dealer-network hover shows rich markdown preview
+  // -------------------------------------------------------------------------
+  test('TC-VIS-005-DEALER: hovering dealer-network link shows rendered markdown and refs', async ({ page }) => {
+    await setMarkdown(
+      page,
+      'The [[dealership/dealer-network|dealer-originated]] loan submissions.'
+    );
+
+    const link = page.locator('[data-wikilink-id="dealership/dealer-network"]');
+    await expect(link).toBeVisible();
+    // Link text should use the display alias
+    await expect(link).toHaveText('dealer-originated');
+
+    await link.dispatchEvent('mouseenter');
+    await page.waitForTimeout(600);
+
+    const tooltip = page.locator('#wikilink-preview-tooltip');
+    await expect(tooltip).toBeVisible({ timeout: 2_000 });
+
+    // Title shows resolved note title from index
+    const title = tooltip.locator('.wikilink-preview-tooltip__title');
+    await expect(title).toContainText('Dealer Network');
+
+    // Body should be rendered HTML — check for headings and bold
+    const body = tooltip.locator('.wikilink-preview-tooltip__body');
+    await expect(body.locator('h2').first()).toBeVisible();
+    await expect(body).toContainText('Onboarding');
+    await expect(body.locator('strong').first()).toBeVisible();
+
+    // 12 reference notes section
+    const refsTitle = tooltip.locator('.wikilink-preview-tooltip__refs-title');
+    await expect(refsTitle).toContainText('Also referenced in 12 notes');
+    const refLinks = tooltip.locator('.wikilink-preview-tooltip__refs-list .wikilink-preview-tooltip__ref-link');
+    await expect(refLinks).toHaveCount(10); // 10 sources provided in mock
+
+    // Snapshot for visual regression
+    await expect(tooltip).toHaveScreenshot('tc-vis-005-dealer-network-hover.png');
   });
 
   // -------------------------------------------------------------------------
