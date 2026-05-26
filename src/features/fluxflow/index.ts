@@ -180,10 +180,7 @@ export async function initializeForWikilinks(context: vscode.ExtensionContext): 
         }
       }
       notifyWikilinkChange();
-      emitScopeChanged(
-        Array.from(openPaths),
-        'workspace-folders-changed'
-      );
+      emitScopeChanged(Array.from(openPaths), 'workspace-folders-changed');
     })
   );
 
@@ -443,9 +440,7 @@ export function isGraphPathExcluded(relPath: string): boolean {
     return false;
   }
 
-  return normalizedPath
-    .split('/')
-    .some(segment => segment.startsWith('.') && segment.length > 1);
+  return normalizedPath.split('/').some(segment => segment.startsWith('.') && segment.length > 1);
 }
 
 function getGraphIndexExcludeGlob(): string {
