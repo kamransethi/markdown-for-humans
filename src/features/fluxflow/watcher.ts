@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright (c) 2025-2026 DK-AI
+ * Author: Kamran Sethi
  *
  * Licensed under the MIT License. See LICENSE file in the project root for details.
  */
@@ -10,7 +10,7 @@ export class FluxFlowWatcher implements vscode.Disposable {
   private disposables: vscode.Disposable[] = [];
 
   constructor(
-    private filePatterns: string[],
+    private filePatterns: Array<string | vscode.RelativePattern>,
     private onFileChanged: (uri: vscode.Uri) => void,
     private onFileDeleted: (uri: vscode.Uri) => void
   ) {}

@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2025-2026 DK-AI
+ * Author: Kamran Sethi
  *
  * Unified AI Explanation Panel — shared component for both document analysis
  * (text operations) and image analysis (image ask) results.

@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright (c) 2025-2026 DK-AI
+ * Author: Kamran Sethi
  *
  * Extension-host AI text refinement.
  * Receives requests from the webview, calls the LLM provider, and sends back refined text.

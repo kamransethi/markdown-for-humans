@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright (c) 2025-2026 DK-AI
+ * Author: Kamran Sethi
  *
  * Message router for the markdown editor provider.
  * Replaces the monolithic switch statement with a handler registry,

@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2025-2026 DK-AI
+ * Author: Kamran Sethi
  *
  * Licensed under the MIT License. See LICENSE file in the project root for details.
  */
@@ -211,6 +211,12 @@ export class GraphDatabase {
     // FTS cleanup first (not cascaded automatically)
     this.clearFtsForDocument(doc.id);
     this.db!.run('DELETE FROM documents WHERE id = ?', [doc.id]);
+    this.dirty = true;
+  }
+
+  clearAllDocuments(): void {
+    this.db!.run('DELETE FROM fts;');
+    this.db!.run('DELETE FROM documents;');
     this.dirty = true;
   }
 

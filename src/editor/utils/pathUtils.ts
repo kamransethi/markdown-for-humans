@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright (c) 2025-2026 DK-AI
+ * Author: Kamran Sethi
  *
  * Path resolution utilities for the markdown editor.
  * All functions are pure (no class instance / `this` dependency) for testability.

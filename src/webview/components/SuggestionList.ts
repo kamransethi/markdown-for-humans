@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2025-2026 DK-AI
+ * Author: Kamran Sethi
  *
  * Shared UI component for TipTap suggestions.
  * Handles rendering, positioning, and keyboard navigation.

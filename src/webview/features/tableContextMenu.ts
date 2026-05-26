@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright (c) 2025-2026 DK-AI
+ * Author: Kamran Sethi
  *
  * Google Docs-style table context menu for the WYSIWYG markdown editor.
  * Shows on right-click inside a table cell. Includes clipboard ops,

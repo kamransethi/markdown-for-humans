@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2025-2026 DK-AI
+ * Author: Kamran Sethi
  *
  * Client-side cache for workspace files.
  * Allows for instant local fuzzy searching in the webview.

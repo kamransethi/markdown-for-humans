@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2025-2026 DK-AI
+ * Author: Kamran Sethi
  *
  * FR-001: Reactive Settings Panel
  *

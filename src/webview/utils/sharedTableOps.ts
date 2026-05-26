@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright (c) 2025-2026 DK-AI
+ * Author: Kamran Sethi
  *
  * Shared table operation SVGs and DOM builder used by BOTH the toolbar
  * table dropdown and the right-click table context menu.

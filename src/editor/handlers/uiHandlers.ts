@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright (c) 2025-2026 DK-AI
+ * Author: Kamran Sethi
  *
  * UI and export handlers for the markdown editor.
  * Extracted from MarkdownEditorProvider for modularity.

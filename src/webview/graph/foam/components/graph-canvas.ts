@@ -3,6 +3,7 @@ import { customElement, property } from 'lit/decorators.js';
 import ForceGraph from 'force-graph';
 import { forceX, forceY, forceCollide, forceManyBody, forceLink } from 'd3-force';
 import { scaleLinear } from 'd3-scale';
+import { rgb } from 'd3-color';
 import { Painter } from '../lib/painter';
 import { getNodeFillAndBorder, getLinkColor, getNodeLabelColor } from '../lib/colors';
 import { GraphModelLink } from '../lib/types';
@@ -125,6 +126,7 @@ export class GraphCanvas extends LitElement {
   @property({ type: Object }) labels: Labels = { fade: 0 };
   @property({ type: Number }) nodeFontSizeMultiplier: number = 1;
   @property({ type: Number }) nodeSizeMultiplier: number = 1;
+  @property({ type: String }) hoverNodeId: string | null = null;
   @property({ type: Number }) linkWidthMultiplier: number = 1;
   @property({ type: String }) animateLinks: LinkAnimation = 'forward';
   @property({ type: Array }) groups: GroupRule[] = [];
@@ -209,7 +211,10 @@ export class GraphCanvas extends LitElement {
           this.labels
         );
 
-        const textColor = getNodeLabelColor(fill, state, opacity, this.rs.style);
+        const textColor =
+          node.id === this.hoverNodeId
+            ? rgb('#000').copy({ opacity: 1 })
+            : getNodeLabelColor(fill, state, opacity, this.rs.style);
 
         const labelPosition = graphPointToViewport(
           ctx.getTransform(),

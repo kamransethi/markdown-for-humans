@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright (c) 2025-2026 DK-AI
+ * Author: Kamran Sethi
  *
  * Extension-host AI Explain.
  * Takes document text and produces a simplified, structured explanation

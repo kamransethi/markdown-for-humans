@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright (c) 2025-2026 DK-AI
+ * Author: Kamran Sethi
  *
  * Extension-host Image AI Ask handler.
  * Receives an image path/URL + action from the webview, loads the image,

@@ -1,5 +1,5 @@
 ﻿/**
- * Copyright (c) 2025-2026 DK-AI
+ * Author: Kamran Sethi
  *
  * Webview-side AI text refinement module.
  * Sends selected text + mode to the extension host via postMessage,

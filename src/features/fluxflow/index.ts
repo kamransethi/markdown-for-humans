@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2025-2026 DK-AI
+ * Author: Kamran Sethi
  *
  * Licensed under the MIT License. See LICENSE file in the project root for details.
  */
@@ -109,7 +109,7 @@ async function indexGraphResourceFilesForWikilinks(
   for (const ext of WIKILINK_GRAPH_RESOURCE_EXTENSIONS) {
     const files = await vscode.workspace.findFiles(
       new vscode.RelativePattern(workspacePath, `**/*${ext}`),
-      '**/node_modules/**'
+      getGraphIndexExcludeGlob()
     );
     for (const fileUri of files) {
       await indexGraphResourceFileForWikilinks(db, workspacePath, fileUri.fsPath);
@@ -123,7 +123,7 @@ async function indexAllMarkdownForWikilinks(
 ): Promise<void> {
   const mdFiles = await vscode.workspace.findFiles(
     new vscode.RelativePattern(workspacePath, '**/*.md'),
-    '**/node_modules/**'
+    getGraphIndexExcludeGlob()
   );
   for (const fileUri of mdFiles) {
     await indexMarkdownFileForWikilinks(db, workspacePath, fileUri.fsPath);
@@ -165,22 +165,23 @@ export async function initializeForWikilinks(context: vscode.ExtensionContext): 
   // Track workspace folder additions/removals
   context.subscriptions.push(
     vscode.workspace.onDidChangeWorkspaceFolders(async event => {
+      // Add new folders
       for (const folder of event.added) {
         await openWikilinkFolder(folder.uri.fsPath);
-        notifyWikilinkChange();
       }
-      for (const folder of event.removed) {
-        const fp = folder.uri.fsPath;
-        const db = wikilinkDatabases.get(fp);
-        // Only close if not the shared KG database
-        if (db && db !== database) {
-          db.close();
+      // Remove databases for folders that are no longer in the workspace
+      const openPaths = new Set((vscode.workspace.workspaceFolders ?? []).map(f => f.uri.fsPath));
+      for (const [fp, db] of wikilinkDatabases.entries()) {
+        if (!openPaths.has(fp)) {
+          if (db && db !== database) {
+            db.close();
+          }
+          wikilinkDatabases.delete(fp);
         }
-        wikilinkDatabases.delete(fp);
-        notifyWikilinkChange();
       }
+      notifyWikilinkChange();
       emitScopeChanged(
-        (vscode.workspace.workspaceFolders ?? []).map(folder => folder.uri.fsPath),
+        Array.from(openPaths),
         'workspace-folders-changed'
       );
     })
@@ -418,6 +419,41 @@ function getConfiguredGraphFileTypes(): string[] {
   return fileTypes.length > 0 ? fileTypes : ['.md'];
 }
 
+const DEFAULT_GRAPH_INDEX_EXCLUDE_GLOB = '**/{node_modules,.node_modules}/**';
+
+function shouldSkipHiddenFolders(): boolean {
+  const workspaceCfg = vscode.workspace.getConfiguration('gptAiMarkdownEditor');
+  return workspaceCfg.get<boolean>('knowledgeGraph.skipHiddenFolders', true);
+}
+
+export function isGraphPathExcluded(relPath: string): boolean {
+  const normalizedPath = relPath.split(path.sep).join('/');
+  if (
+    normalizedPath === 'node_modules' ||
+    normalizedPath === '.node_modules' ||
+    normalizedPath.startsWith('node_modules/') ||
+    normalizedPath.startsWith('.node_modules/') ||
+    normalizedPath.includes('/node_modules/') ||
+    normalizedPath.includes('/.node_modules/')
+  ) {
+    return true;
+  }
+
+  if (!shouldSkipHiddenFolders()) {
+    return false;
+  }
+
+  return normalizedPath
+    .split('/')
+    .some(segment => segment.startsWith('.') && segment.length > 1);
+}
+
+function getGraphIndexExcludeGlob(): string {
+  return shouldSkipHiddenFolders()
+    ? '**/{node_modules,.node_modules,.*}/**'
+    : DEFAULT_GRAPH_INDEX_EXCLUDE_GLOB;
+}
+
 function buildGraphGlobPatterns(fileTypes: string[]): string[] {
   return fileTypes.map(ext => `**/*${ext}`);
 }
@@ -498,15 +534,23 @@ export async function initialize(_context: vscode.ExtensionContext): Promise<voi
 
   // 2. Start file watcher
   const fileTypes = getConfiguredGraphFileTypes();
-  const watcherPatterns = createGraphWatcherPatterns(fileTypes);
+  const watcherPatterns = createGraphWatcherPatterns(fileTypes).map(
+    pattern => new vscode.RelativePattern(workspacePath, pattern)
+  );
   watcher = new FluxFlowWatcher(
     watcherPatterns,
     uri => {
       const relPath = path.relative(workspacePath, uri.fsPath).split(path.sep).join('/');
+      if (isGraphPathExcluded(relPath)) {
+        return;
+      }
       indexSingleFile(workspacePath, relPath);
     },
     uri => {
       const relPath = path.relative(workspacePath, uri.fsPath).split(path.sep).join('/');
+      if (isGraphPathExcluded(relPath)) {
+        return;
+      }
       const doc = database?.getDocumentByPath(relPath);
       if (doc && vectorStore) {
         vectorStore.removeByDocId(doc.id);
@@ -529,7 +573,8 @@ export async function initialize(_context: vscode.ExtensionContext): Promise<voi
     vscode.workspace.onDidChangeConfiguration(e => {
       if (
         e.affectsConfiguration('gptAiMarkdownEditor.knowledgeGraph.enabled') ||
-        e.affectsConfiguration('gptAiMarkdownEditor.knowledgeGraph.indexedFileTypes')
+        e.affectsConfiguration('gptAiMarkdownEditor.knowledgeGraph.indexedFileTypes') ||
+        e.affectsConfiguration('gptAiMarkdownEditor.knowledgeGraph.skipHiddenFolders')
       ) {
         vscode.window
           .showInformationMessage(
@@ -568,12 +613,20 @@ async function fullIndex(workspacePath: string, options?: { force?: boolean }): 
   const patterns = buildGraphGlobPatterns(fileTypes);
   const filesByPath = new Map<string, vscode.Uri>();
   for (const pattern of patterns) {
-    const found = await vscode.workspace.findFiles(pattern, '**/node_modules/**');
+    const found = await vscode.workspace.findFiles(
+      new vscode.RelativePattern(workspacePath, pattern),
+      getGraphIndexExcludeGlob()
+    );
     for (const fileUri of found) {
+      const relPath = path.relative(workspacePath, fileUri.fsPath).split(path.sep).join('/');
+      if (isGraphPathExcluded(relPath)) continue;
       filesByPath.set(fileUri.fsPath, fileUri);
     }
   }
   const files = Array.from(filesByPath.values());
+
+  // Reset database state before a full rebuild so stale documents are removed.
+  database.clearAllDocuments();
 
   // Update progress state
   progressState.phase = 'indexing';
@@ -660,6 +713,10 @@ function indexSingleFile(workspacePath: string, relPath: string): void {
   if (!database) return;
 
   const absPath = path.join(workspacePath, relPath);
+  if (isGraphPathExcluded(relPath)) {
+    return;
+  }
+
   let content: string;
   try {
     content = fs.readFileSync(absPath, 'utf-8');

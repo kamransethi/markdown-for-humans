@@ -2,7 +2,7 @@
   "name": "gpt-ai-markdown-editor",
   "displayName": "Flux Flow Markdown Editor",
   "description": "A full-featured WYSIWYG Markdown editor with visual table editing, drag-and-drop images, Mermaid diagrams, and distraction-free writing—all inside VS Code.",
-  "version": "3.1.0",
+  "version": "3.1.5",
   "publisher": "kamransethi",
   "author": {
     "name": "DK-AI",
@@ -380,6 +380,12 @@
           "default": "",
           "markdownDescription": "Custom directory for Knowledge Graph data. Defaults to `~/.fluxflow`. Data persists across extension reinstalls.",
           "order": 52
+        },
+        "gptAiMarkdownEditor.knowledgeGraph.skipHiddenFolders": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Skip all hidden folders during Knowledge Graph indexing and watcher updates. Hidden folders are names that start with a dot (for example `.git`, `.vscode`, or `.cache`).",
+          "order": 53
         },
         "gptAiMarkdownEditor.developerMode": {
           "type": "boolean",
