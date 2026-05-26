@@ -134,6 +134,11 @@
           "command": "gptAiMarkdownEditor.openFile",
           "when": "resourceExtname == .md && resourceScheme == file && activeEditor == workbench.editors.files.textFileEditor",
           "group": "navigation"
+        },
+        {
+          "command": "gptAiMarkdownEditor.knowledgeGraph.openGraph",
+          "when": "resourceExtname == .md && resourceScheme == file",
+          "group": "navigation@2"
         }
       ],
       "explorer/context": [
@@ -366,7 +371,7 @@
         },
         "gptAiMarkdownEditor.knowledgeGraph.indexedFileTypes": {
           "type": "string",
-          "default": ".md, .csv, .html, .drawio.svg, .bpmn",
+          "default": ".md, .csv, .txt, .html, .drawio.svg, .bpmn",
           "markdownDescription": "Comma-separated file extensions to include in Knowledge Graph indexing and vectorization. Split on commas and trim spaces; each extension should start with a dot.",
           "order": 51
         },
@@ -450,10 +455,15 @@
     "@typescript-eslint/parser": "^8.57.2",
     "@vscode/vsce": "^3.7.1",
     "concurrently": "^9.2.1",
+    "d3-force": "^3.0.0",
+    "d3-scale": "^4.0.2",
+    "d3-color": "^3.1.0",
     "esbuild": "^0.27.4",
     "eslint": "^10.1.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.5",
+    "force-graph": "^1.51.0",
+    "lit": "^3.3.1",
     "jest": "^30.3.0",
     "jest-environment-jsdom": "^30.3.0",
     "prettier": "^3.8.1",

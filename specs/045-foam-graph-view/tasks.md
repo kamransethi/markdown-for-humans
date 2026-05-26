@@ -17,9 +17,9 @@
 
 **Purpose**: Prepare reusable test harnesses and protocol scaffolding used across all stories.
 
-- [ ] T001 Add graph message contract type stubs aligned to `contracts/graph-view-contract.md` in src/shared/messageTypes.ts
-- [ ] T002 [P] Create reusable graph projection test fixtures in src/features/fluxflow/__tests__/graphTestUtils.ts
-- [ ] T003 [P] Create graph panel host webview test harness helpers in src/features/fluxflow/__tests__/graphPanelTestUtils.ts
+- [x] T001 Add graph message contract type stubs aligned to `contracts/graph-view-contract.md` in src/shared/messageTypes.ts
+- [x] T002 [P] Create reusable graph projection test fixtures in src/features/fluxflow/__tests__/graphTestUtils.ts
+- [x] T003 [P] Create graph panel host webview test harness helpers in src/features/fluxflow/__tests__/graphPanelTestUtils.ts
 
 ---
 
@@ -31,18 +31,18 @@
 
 ### Tests First (RED)
 
-- [ ] T004 [P] Add RED scope-filter regression tests for graph projection in src/features/fluxflow/__tests__/graphScopeProjection.test.ts
-- [ ] T005 [P] Add RED malformed-target normalization regressions in src/features/fluxflow/__tests__/stressTestIndexing.test.ts
-- [ ] T006 [P] Add RED host/webview message-contract tests for graph:init/graph:update/graph:error and graph:open-note/graph:refresh in src/features/fluxflow/__tests__/graphPanelHost.test.ts
+- [x] T004 [P] Add RED scope-filter regression tests for graph projection in src/features/fluxflow/__tests__/graphScopeProjection.test.ts
+- [x] T005 [P] Add RED malformed-target normalization regressions in src/features/fluxflow/__tests__/stressTestIndexing.test.ts
+- [x] T006 [P] Add RED host/webview message-contract tests for graph:init/graph:update/graph:error and graph:open-note/graph:refresh in src/features/fluxflow/__tests__/graphPanelHost.test.ts
 
 ### Implementation
 
-- [ ] T007 Implement workspace-context registry and merged projection builder in src/features/fluxflow/index.ts
-- [ ] T008 [P] Implement typed scope/index/active refresh event primitives in src/features/fluxflow/events.ts
-- [ ] T009 [P] Apply centralized open-workspace scope filtering to Graph Chat retrieval context in src/features/fluxflow/graphChat.ts
-- [ ] T010 Preserve deterministic unresolved self-healing and normalized target resolution paths in src/features/fluxflow/database.ts
-- [ ] T011 Preserve escaped-alias/target normalization during link extraction in src/features/fluxflow/indexer.ts
-- [ ] T012 Wire active markdown URI change publication for graph highlight updates in src/activeWebview.ts
+- [x] T007 Implement workspace-context registry and merged projection builder in src/features/fluxflow/index.ts
+- [x] T008 [P] Implement typed scope/index/active refresh event primitives in src/features/fluxflow/events.ts
+- [x] T009 [P] Apply centralized open-workspace scope filtering to Graph Chat retrieval context in src/features/fluxflow/graphChat.ts
+- [x] T010 Preserve deterministic unresolved self-healing and normalized target resolution paths in src/features/fluxflow/database.ts
+- [x] T011 Preserve escaped-alias/target normalization during link extraction in src/features/fluxflow/indexer.ts
+- [x] T012 Wire active markdown URI change publication for graph highlight updates in src/activeWebview.ts
 
 **Checkpoint**: Foundation ready; user story implementation can now proceed.
 
@@ -56,16 +56,16 @@
 
 ### Tests for User Story 1 (TDD First) ⚠️
 
-- [ ] T013 [P] [US1] Add RED command routing test ensuring toolbar and command palette invoke the same graph command in src/__tests__/graphViewCommandRouting.test.ts
-- [ ] T014 [P] [US1] Add RED graph node selection test ensuring graph:open-note opens the URI in src/features/fluxflow/__tests__/graphPanelHost.test.ts
+- [x] T013 [P] [US1] Add RED command routing test ensuring toolbar and command palette invoke the same graph command in src/__tests__/graphViewCommandRouting.test.ts
+- [x] T014 [P] [US1] Add RED graph node selection test ensuring graph:open-note opens the URI in src/features/fluxflow/__tests__/graphPanelHost.test.ts
 
 ### Implementation for User Story 1
 
-- [ ] T015 [P] [US1] Contribute/align Graph View command and title toolbar action wiring in package.json
-- [ ] T016 [P] [US1] Route toolbar Graph View action to unified command execution in src/editor/handlers/uiHandlers.ts
-- [ ] T017 [US1] Register and dispatch unified graph-open command path in src/extension.ts
-- [ ] T018 [US1] Implement graph:open-note handling and note-open dispatch in src/features/fluxflow/graphPanel.ts
-- [ ] T019 [US1] Implement graph empty-state payload/render handling for zero-note workspaces in src/features/fluxflow/graphPanel.ts
+- [x] T015 [P] [US1] Contribute/align Graph View command and title toolbar action wiring in package.json
+- [x] T016 [P] [US1] Route toolbar Graph View action to unified command execution in src/editor/handlers/uiHandlers.ts
+- [x] T017 [US1] Register and dispatch unified graph-open command path in src/extension.ts
+- [x] T018 [US1] Implement graph:open-note handling and note-open dispatch in src/features/fluxflow/graphPanel.ts
+- [x] T019 [US1] Implement graph empty-state payload/render handling for zero-note workspaces in src/features/fluxflow/graphPanel.ts
 
 **Checkpoint**: User Story 1 is independently functional and testable.
 
@@ -79,15 +79,15 @@
 
 ### Tests for User Story 2 (TDD First) ⚠️
 
-- [ ] T020 [P] [US2] Add RED multi-root include/exclude scope tests in src/features/fluxflow/__tests__/graphScopeProjection.test.ts
-- [ ] T021 [P] [US2] Add RED graph chat scope-enforcement tests in src/features/fluxflow/__tests__/graphChatScope.test.ts
+- [x] T020 [P] [US2] Add RED multi-root include/exclude scope tests in src/features/fluxflow/__tests__/graphScopeProjection.test.ts
+- [x] T021 [P] [US2] Add RED graph chat scope-enforcement tests in src/features/fluxflow/__tests__/graphChatScope.test.ts
 
 ### Implementation for User Story 2
 
-- [ ] T022 [US2] Enforce open-folder pruning in workspace projection assembly in src/features/fluxflow/index.ts
-- [ ] T023 [US2] Enforce workspace-scope filtering before graph payload postMessage in src/features/fluxflow/graphPanel.ts
-- [ ] T024 [US2] Consume centralized workspace scope registry for chat retrieval in src/features/fluxflow/graphChat.ts
-- [ ] T025 [US2] Trigger scope refresh on workspace-folder add/remove events in src/extension.ts
+- [x] T022 [US2] Enforce open-folder pruning in workspace projection assembly in src/features/fluxflow/index.ts
+- [x] T023 [US2] Enforce workspace-scope filtering before graph payload postMessage in src/features/fluxflow/graphPanel.ts
+- [x] T024 [US2] Consume centralized workspace scope registry for chat retrieval in src/features/fluxflow/graphChat.ts
+- [x] T025 [US2] Trigger scope refresh on workspace-folder add/remove events in src/extension.ts
 
 **Checkpoint**: User Story 2 is independently functional and testable.
 
@@ -101,15 +101,15 @@
 
 ### Tests for User Story 3 (TDD First) ⚠️
 
-- [ ] T026 [P] [US3] Add RED graph host refresh lifecycle tests for index_changed and active_document_changed events in src/features/fluxflow/__tests__/graphPanelHost.test.ts
-- [ ] T027 [P] [US3] Add RED link-edit save-refresh integration tests in src/features/fluxflow/__tests__/graphRefreshOnSave.test.ts
+- [x] T026 [P] [US3] Add RED graph host refresh lifecycle tests for index_changed and active_document_changed events in src/features/fluxflow/__tests__/graphPanelHost.test.ts
+- [x] T027 [P] [US3] Add RED link-edit save-refresh integration tests in src/features/fluxflow/__tests__/graphRefreshOnSave.test.ts
 
 ### Implementation for User Story 3
 
-- [ ] T028 [US3] Emit index_changed refresh events after index/update flows in src/features/fluxflow/index.ts
-- [ ] T029 [US3] Coalesce graph:update snapshot pushes and active-node highlighting updates in src/features/fluxflow/graphPanel.ts
-- [ ] T030 [US3] Publish active-document change events and consume them in graph refresh pipeline in src/activeWebview.ts
-- [ ] T031 [US3] Implement graph:refresh request handling with deterministic full snapshot rebuild in src/features/fluxflow/graphPanel.ts
+- [x] T028 [US3] Emit index_changed refresh events after index/update flows in src/features/fluxflow/index.ts
+- [x] T029 [US3] Coalesce graph:update snapshot pushes and active-node highlighting updates in src/features/fluxflow/graphPanel.ts
+- [x] T030 [US3] Publish active-document change events and consume them in graph refresh pipeline in src/activeWebview.ts
+- [x] T031 [US3] Implement graph:refresh request handling with deterministic full snapshot rebuild in src/features/fluxflow/graphPanel.ts
 
 **Checkpoint**: User Story 3 is independently functional and testable.
 
@@ -123,14 +123,14 @@
 
 ### Tests for User Story 4 (TDD First) ⚠️
 
-- [ ] T032 [P] [US4] Add RED stress-corpus assertions for intentional unresolved vs malformed unresolved targets in src/features/fluxflow/__tests__/stressTestIndexing.test.ts
-- [ ] T033 [P] [US4] Add RED payload-invariant tests rejecting malformed unresolved node titles/targets in src/features/fluxflow/__tests__/graphPanelHost.test.ts
+- [x] T032 [P] [US4] Add RED stress-corpus assertions for intentional unresolved vs malformed unresolved targets in src/features/fluxflow/__tests__/stressTestIndexing.test.ts
+- [x] T033 [P] [US4] Add RED payload-invariant tests rejecting malformed unresolved node titles/targets in src/features/fluxflow/__tests__/graphPanelHost.test.ts
 
 ### Implementation for User Story 4
 
-- [ ] T034 [US4] Restrict unresolved placeholder creation to truly missing scoped references in src/features/fluxflow/database.ts
-- [ ] T035 [US4] Normalize projected GraphNode target/title values before payload emission in src/features/fluxflow/indexer.ts
-- [ ] T036 [US4] Enforce graph payload invariants before posting graph:update to webview in src/features/fluxflow/graphPanel.ts
+- [x] T034 [US4] Restrict unresolved placeholder creation to truly missing scoped references in src/features/fluxflow/database.ts
+- [x] T035 [US4] Normalize projected GraphNode target/title values before payload emission in src/features/fluxflow/indexer.ts
+- [x] T036 [US4] Enforce graph payload invariants before posting graph:update to webview in src/features/fluxflow/graphPanel.ts
 
 **Checkpoint**: User Story 4 is independently functional and testable.
 
@@ -140,9 +140,9 @@
 
 **Purpose**: Final validation, documentation, and cross-story quality checks.
 
-- [ ] T037 [P] Update feature acceptance checklist for SC-001 to SC-005 in specs/045-foam-graph-view/checklists/requirements.md
-- [ ] T038 [P] Record end-to-end validation outcomes and command evidence in specs/045-foam-graph-view/validation-report.md
-- [ ] T039 Run build and targeted regression commands from specs/045-foam-graph-view/quickstart.md and document any remediation in specs/045-foam-graph-view/quickstart.md
+- [x] T037 [P] Update feature acceptance checklist for SC-001 to SC-005 in specs/045-foam-graph-view/checklists/requirements.md
+- [x] T038 [P] Record end-to-end validation outcomes and command evidence in specs/045-foam-graph-view/validation-report.md
+- [x] T039 Run build and targeted regression commands from specs/045-foam-graph-view/quickstart.md and document any remediation in specs/045-foam-graph-view/quickstart.md
 
 ---
 

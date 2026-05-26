@@ -70,3 +70,20 @@ Manual checks:
 ## 7) Final regression
 
 Run repository-standard test suites required for touched areas before merge.
+
+## Validation Run (2026-05-25)
+
+Executed commands:
+
+```bash
+npx jest src/features/fluxflow/__tests__/graphPanelHost.test.ts src/features/fluxflow/__tests__/graphScopeProjection.test.ts src/features/fluxflow/__tests__/graphChatScope.test.ts src/features/fluxflow/__tests__/graphRefreshOnSave.test.ts src/__tests__/graphViewCommandRouting.test.ts src/features/fluxflow/__tests__/stressTestIndexing.test.ts
+npm run build:debug
+```
+
+Outcome:
+- All targeted graph/stress tests passed.
+- Debug build passed (settings tests + extension build + webview build).
+
+Remediation performed during validation:
+- Fixed graph panel host test singleton cleanup and VS Code mock gaps.
+- Tightened typed event bus testability in `events.ts`.

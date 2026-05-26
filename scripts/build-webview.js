@@ -62,11 +62,20 @@ const buildOptions = {
   entryPoints: [
     { in: 'src/webview/editor.ts', out: 'webview' },
     { in: 'src/webview/settings/settingsPanel.ts', out: 'settings' },
-    { in: 'src/webview/chat/chatWebview.ts', out: 'chat' }
+    { in: 'src/webview/chat/chatWebview.ts', out: 'chat' },
+    { in: 'src/webview/graph/graphWebview.ts', out: 'graph' }
   ],
   bundle: true,
   outdir: 'dist',
   format: 'iife',
+  target: ['es2020'],
+  tsconfigRaw: {
+    compilerOptions: {
+      experimentalDecorators: true,
+      emitDecoratorMetadata: false,
+      useDefineForClassFields: false,
+    },
+  },
   sourcemap: !noSourcemap && !isProduction, // Disable for marketplace builds
   minify: isProduction,
   treeShaking: true,

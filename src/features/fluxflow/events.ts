@@ -17,21 +17,39 @@ export type FluxFlowEvent =
   | {
       type: 'index-changed';
       workspacePath: string;
-      source: 'wikilink' | 'kg-full' | 'kg-incremental';
+      source: 'wikilink' | 'wikilink-resource' | 'kg-full' | 'kg-incremental';
+      timestamp: number;
+    }
+  | {
+      type: 'active-document-changed';
+      uri: string | null;
       timestamp: number;
     };
 
 const eventEmitter = new vscode.EventEmitter<FluxFlowEvent>();
+const listeners = new Set<(event: FluxFlowEvent) => void>();
 
 export function onFluxFlowEvent(listener: (event: FluxFlowEvent) => void): vscode.Disposable {
-  return eventEmitter.event(listener);
+  listeners.add(listener);
+  return {
+    dispose: () => {
+      listeners.delete(listener);
+    },
+  };
+}
+
+function broadcast(event: FluxFlowEvent): void {
+  eventEmitter.fire(event);
+  for (const listener of listeners) {
+    listener(event);
+  }
 }
 
 export function emitScopeChanged(
   workspacePaths: string[],
   reason: 'initialize' | 'workspace-folders-changed'
 ): void {
-  eventEmitter.fire({
+  broadcast({
     type: 'scope-changed',
     workspacePaths,
     reason,
@@ -41,12 +59,20 @@ export function emitScopeChanged(
 
 export function emitIndexChanged(
   workspacePath: string,
-  source: 'wikilink' | 'kg-full' | 'kg-incremental'
+  source: 'wikilink' | 'wikilink-resource' | 'kg-full' | 'kg-incremental'
 ): void {
-  eventEmitter.fire({
+  broadcast({
     type: 'index-changed',
     workspacePath,
     source,
+    timestamp: Date.now(),
+  });
+}
+
+export function emitActiveDocumentChanged(uri: string | null): void {
+  broadcast({
+    type: 'active-document-changed',
+    uri,
     timestamp: Date.now(),
   });
 }

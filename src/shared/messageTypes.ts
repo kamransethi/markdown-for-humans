@@ -127,3 +127,85 @@ export const MessageType = {
 
 /** Union of all valid message type string values. */
 export type MessageTypeValue = (typeof MessageType)[keyof typeof MessageType];
+
+// ── Graph View contract (host <-> webview) ───────────────────────────────────
+
+export type GraphRefreshReason =
+  | 'panel_opened'
+  | 'scope_changed'
+  | 'index_changed'
+  | 'active_document_changed'
+  | 'user_requested';
+
+export type GraphContractNode = {
+  nodeId: string;
+  title: string;
+  kind: 'resolved' | 'unresolved';
+  isActive: boolean;
+  uri?: string;
+  workspacePath?: string;
+  tags?: Array<{ label: string }>;
+};
+
+export type GraphContractEdge = {
+  edgeId: string;
+  sourceNodeId: string;
+  targetNodeId: string;
+  isResolved: boolean;
+};
+
+export type GraphContractPayload = {
+  reason: GraphRefreshReason;
+  graph: {
+    nodes: GraphContractNode[];
+    edges: GraphContractEdge[];
+  };
+  activeUri: string | null;
+  emptyState?: {
+    title: string;
+    description: string;
+  } | null;
+};
+
+export type GraphHostToWebviewMessage =
+  | {
+      type: 'graph:init';
+      payload: GraphContractPayload;
+    }
+  | {
+      type: 'graph:update';
+      payload: GraphContractPayload;
+    }
+  | {
+      type: 'graph:error';
+      payload: {
+        message: string;
+        recoverable: boolean;
+      };
+    }
+  | {
+      type: 'graph:select-node';
+      payload: {
+        nodeId: string;
+      };
+    };
+
+export type GraphWebviewToHostMessage =
+  | {
+      type: 'graph:open-note';
+      payload: {
+        uri: string;
+      };
+    }
+  | {
+      type: 'graph:refresh';
+      payload?: {
+        reason?: string;
+      };
+    }
+  | {
+      type: 'graph:focus-node';
+      payload?: {
+        nodeId?: string;
+      };
+    };

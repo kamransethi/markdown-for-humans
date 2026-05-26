@@ -1,72 +1,129 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import type { GraphDatabase } from './database';
 import { onFluxFlowEvent } from './events';
-import { getActiveDocumentUri, onDidActiveDocumentChange } from '../../activeWebview';
+import { onDidActiveDocumentChange } from '../../activeWebview';
+import type {
+  GraphContractPayload,
+  GraphHostToWebviewMessage,
+  GraphWebviewToHostMessage,
+} from '../../shared/messageTypes';
+import { buildScopedGraphPayload, type GraphProjectionContext } from './graphProjection';
 
 const PANEL_ID = 'gptAiMarkdownEditor.knowledgeGraphPanel';
 
-type GraphNode = {
-  id: string;
-  title: string;
-  path: string;
-  placeholder?: boolean;
-};
-
-type GraphLink = {
-  source: string;
-  target: string;
-};
-
 let currentPanel: vscode.WebviewPanel | undefined;
+
+export function __resetGraphPanelForTests(): void {
+  currentPanel = undefined;
+}
+
+function post(panel: vscode.WebviewPanel, message: GraphHostToWebviewMessage): void {
+  panel.webview.postMessage(message);
+}
+
+export function createGraphInitMessage(payload: GraphContractPayload): GraphHostToWebviewMessage {
+  return {
+    type: 'graph:init',
+    payload,
+  };
+}
+
+export function createGraphUpdateMessage(payload: GraphContractPayload): GraphHostToWebviewMessage {
+  return {
+    type: 'graph:update',
+    payload,
+  };
+}
+
+export function createGraphErrorMessage(message: string): GraphHostToWebviewMessage {
+  return {
+    type: 'graph:error',
+    payload: {
+      message,
+      recoverable: true,
+    },
+  };
+}
 
 export function openGraphPanel(
   context: vscode.ExtensionContext,
-  getDb: () => GraphDatabase | null,
-  getWorkspacePath: () => string | null
+  getProjectionContexts: () => GraphProjectionContext[],
+  getOpenWorkspacePaths: () => string[]
 ): void {
   if (currentPanel) {
     currentPanel.reveal(vscode.ViewColumn.Beside);
-    refreshGraphPayload(currentPanel, getDb, getWorkspacePath);
+    refreshGraphPayload(currentPanel, getProjectionContexts, getOpenWorkspacePaths, 'panel_opened');
     return;
   }
 
-  const panel = vscode.window.createWebviewPanel(PANEL_ID, 'Knowledge Graph', vscode.ViewColumn.Beside, {
-    enableScripts: true,
-    retainContextWhenHidden: true,
-    localResourceRoots: [vscode.Uri.joinPath(context.extensionUri, 'dist')],
-  });
+  const panel = vscode.window.createWebviewPanel(
+    PANEL_ID,
+    'Knowledge Graph',
+    vscode.ViewColumn.Beside,
+    {
+      enableScripts: true,
+      retainContextWhenHidden: true,
+      localResourceRoots: [vscode.Uri.joinPath(context.extensionUri, 'dist')],
+    }
+  );
 
   currentPanel = panel;
-  panel.webview.html = getGraphPanelHtml(panel.webview);
+  panel.webview.html = getGraphPanelHtml(panel.webview, context.extensionUri);
 
   const eventSub = onFluxFlowEvent(event => {
     if (event.type === 'scope-changed') {
-      refreshGraphPayload(panel, getDb, getWorkspacePath);
+      refreshGraphPayload(panel, getProjectionContexts, getOpenWorkspacePaths, 'scope_changed');
       return;
     }
 
-    const workspacePath = getWorkspacePath();
-    if (workspacePath && event.workspacePath === workspacePath) {
-      refreshGraphPayload(panel, getDb, getWorkspacePath);
+    if (event.type === 'index-changed') {
+      refreshGraphPayload(panel, getProjectionContexts, getOpenWorkspacePaths, 'index_changed');
     }
   });
 
   const activeDocSub = onDidActiveDocumentChange(() => {
-    postActiveSelection(panel, getWorkspacePath);
+    refreshGraphPayload(
+      panel,
+      getProjectionContexts,
+      getOpenWorkspacePaths,
+      'active_document_changed'
+    );
   });
 
   panel.webview.onDidReceiveMessage(
-    async (message: { type: string; path?: string }) => {
+    async (message: GraphWebviewToHostMessage | { type: string; path?: string }) => {
       switch (message.type) {
+        case 'graph:refresh':
         case 'webviewDidLoad':
-          refreshGraphPayload(panel, getDb, getWorkspacePath);
+          refreshGraphPayload(
+            panel,
+            getProjectionContexts,
+            getOpenWorkspacePaths,
+            'user_requested'
+          );
           return;
+        case 'graph:open-note': {
+          const payload = 'payload' in message ? message.payload : undefined;
+          if (!payload?.uri) {
+            return;
+          }
+          const uri = vscode.Uri.parse(payload.uri);
+          await vscode.commands.executeCommand(
+            'vscode.openWith',
+            uri,
+            'gptAiMarkdownEditor.editor'
+          );
+          return;
+        }
         case 'webviewDidSelectNode': {
-          const workspacePath = getWorkspacePath();
-          if (!workspacePath || !message.path) return;
-          const uri = vscode.Uri.file(path.join(workspacePath, message.path));
-          await vscode.commands.executeCommand('vscode.openWith', uri, 'gptAiMarkdownEditor.editor');
+          const openWorkspacePaths = getOpenWorkspacePaths();
+          if (openWorkspacePaths.length === 0 || !message.path) return;
+          const uri = vscode.Uri.file(path.join(openWorkspacePaths[0], message.path));
+          await vscode.commands.executeCommand(
+            'vscode.openWith',
+            uri,
+            'gptAiMarkdownEditor.editor'
+          );
           return;
         }
       }
@@ -84,173 +141,54 @@ export function openGraphPanel(
 
 function refreshGraphPayload(
   panel: vscode.WebviewPanel,
-  getDb: () => GraphDatabase | null,
-  getWorkspacePath: () => string | null
+  getProjectionContexts: () => GraphProjectionContext[],
+  getOpenWorkspacePaths: () => string[],
+  reason: GraphContractPayload['reason']
 ): void {
-  const db = getDb();
-  const workspacePath = getWorkspacePath();
-  if (!db || !workspacePath) {
-    panel.webview.postMessage({ type: 'didUpdateGraphData', payload: { nodes: [], links: [] } });
-    return;
-  }
+  try {
+    const payload = buildScopedGraphPayload(
+      getProjectionContexts(),
+      getOpenWorkspacePaths(),
+      reason
+    );
 
-  const payload = buildGraphPayload(db);
-  panel.webview.postMessage({
-    type: 'didUpdateGraphData',
-    payload,
-  });
-  postActiveSelection(panel, getWorkspacePath);
-}
-
-function postActiveSelection(
-  panel: vscode.WebviewPanel,
-  getWorkspacePath: () => string | null
-): void {
-  const workspacePath = getWorkspacePath();
-  const activeUri = getActiveDocumentUri();
-  if (!workspacePath || !activeUri) return;
-
-  const relPath = path.relative(workspacePath, activeUri.fsPath).split(path.sep).join('/');
-  if (!relPath || relPath.startsWith('..')) return;
-
-  panel.webview.postMessage({
-    type: 'didSelectNode',
-    payload: relPath,
-  });
-}
-
-function buildGraphPayload(db: GraphDatabase): { nodes: GraphNode[]; links: GraphLink[] } {
-  const docs = db.getAllDocuments();
-  const nodeMap = new Map<string, GraphNode>();
-  const links: GraphLink[] = [];
-
-  for (const doc of docs) {
-    nodeMap.set(doc.path, {
-      id: doc.path,
-      title: doc.title || path.basename(doc.path, path.extname(doc.path)),
-      path: doc.path,
-    });
-  }
-
-  for (const doc of docs) {
-    const outgoing = db.getOutgoingLinks(doc.path);
-    for (const link of outgoing) {
-      let targetId = link.targetPath;
-      if (!targetId) {
-        targetId = `placeholder:${link.targetTitle}`;
-        if (!nodeMap.has(targetId)) {
-          nodeMap.set(targetId, {
-            id: targetId,
-            title: link.targetTitle,
-            path: '',
-            placeholder: true,
-          });
-        }
-      }
-
-      links.push({ source: doc.path, target: targetId });
+    if (reason === 'panel_opened') {
+      post(panel, createGraphInitMessage(payload));
+      return;
     }
-  }
 
-  return {
-    nodes: Array.from(nodeMap.values()),
-    links,
-  };
+    post(panel, createGraphUpdateMessage(payload));
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to build graph payload';
+    post(panel, createGraphErrorMessage(message));
+  }
 }
 
-function getGraphPanelHtml(webview: vscode.Webview): string {
-  const nonce = createNonce();
+function getGraphPanelHtml(webview: vscode.Webview, extensionUri: vscode.Uri): string {
+  const toWebviewHref = (uri: vscode.Uri): string => {
+    if (typeof webview.asWebviewUri === 'function') {
+      return webview.asWebviewUri(uri).toString();
+    }
+    return uri.toString();
+  };
+
+  const scriptUri = toWebviewHref(vscode.Uri.joinPath(extensionUri, 'dist', 'graph.js'));
+  const styleUri = toWebviewHref(vscode.Uri.joinPath(extensionUri, 'dist', 'graph.css'));
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}';" />
-  <title>Knowledge Graph</title>
-  <style>
-    body { font-family: var(--vscode-font-family, sans-serif); margin: 0; padding: 0; color: var(--vscode-foreground); background: var(--vscode-editor-background); }
-    .header { padding: 12px 14px; border-bottom: 1px solid var(--vscode-panel-border); }
-    .header h1 { margin: 0; font-size: 13px; font-weight: 600; }
-    .meta { margin-top: 4px; font-size: 11px; color: var(--vscode-descriptionForeground); }
-    .content { padding: 8px 10px 14px; }
-    .node { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 8px; margin-bottom: 4px; border-radius: 4px; cursor: pointer; }
-    .node:hover { background: var(--vscode-list-hoverBackground); }
-    .node.active { background: var(--vscode-list-activeSelectionBackground); color: var(--vscode-list-activeSelectionForeground); }
-    .node.placeholder { opacity: 0.7; cursor: default; }
-    .title { font-size: 12px; }
-    .path { font-size: 11px; opacity: 0.8; }
-  </style>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src ${webview.cspSource}; connect-src ${webview.cspSource}; font-src ${webview.cspSource}; img-src ${webview.cspSource} data: blob:;" />
+  <title>Foam-style Graph View</title>
+  <link rel="stylesheet" href="${styleUri}" />
 </head>
 <body>
-  <div class="header">
-    <h1>Knowledge Graph (Initial Host)</h1>
-    <div class="meta" id="meta">0 nodes • 0 links</div>
+  <div class="graph-shell">
+    <div id="statusLine">0 nodes  •  0 links</div>
+    <foam-graph></foam-graph>
   </div>
-  <div class="content" id="nodeList"></div>
-  <script nonce="${nonce}">
-    const vscode = acquireVsCodeApi();
-    let activeNode = '';
-
-    function render(payload) {
-      const nodes = payload?.nodes ?? [];
-      const links = payload?.links ?? [];
-      document.getElementById('meta').textContent = String(nodes.length) + ' nodes • ' + String(links.length) + ' links';
-      const host = document.getElementById('nodeList');
-      host.innerHTML = '';
-
-      for (const node of nodes) {
-        const el = document.createElement('div');
-        el.className = 'node ' + (node.placeholder ? 'placeholder ' : '') + (activeNode === node.id ? 'active' : '');
-        const title = document.createElement('div');
-        title.className = 'title';
-        title.textContent = node.title;
-        const p = document.createElement('div');
-        p.className = 'path';
-        p.textContent = node.path || '(unresolved target)';
-        el.appendChild(title);
-        el.appendChild(p);
-        if (!node.placeholder && node.path) {
-          el.addEventListener('click', () => {
-            vscode.postMessage({ type: 'webviewDidSelectNode', path: node.path });
-          });
-        }
-        host.appendChild(el);
-      }
-    }
-
-    window.addEventListener('message', event => {
-      const message = event.data;
-      if (message.type === 'didUpdateGraphData') {
-        render(message.payload);
-      }
-      if (message.type === 'didSelectNode') {
-        activeNode = message.payload || '';
-        const current = document.querySelectorAll('.node');
-        for (const nodeEl of current) {
-          nodeEl.classList.remove('active');
-        }
-        const list = document.getElementById('nodeList');
-        for (const nodeEl of list.children) {
-          const pathEl = nodeEl.querySelector('.path');
-          if (pathEl && pathEl.textContent === activeNode) {
-            nodeEl.classList.add('active');
-            break;
-          }
-        }
-      }
-    });
-
-    vscode.postMessage({ type: 'webviewDidLoad' });
-  </script>
+  <script src="${scriptUri}"></script>
 </body>
 </html>`;
-}
-
-function createNonce(): string {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  let out = '';
-  for (let i = 0; i < 32; i++) {
-    out += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return out;
 }

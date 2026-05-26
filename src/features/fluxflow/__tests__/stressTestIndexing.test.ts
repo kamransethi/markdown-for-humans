@@ -74,7 +74,12 @@ describe('FluxFlow stress_test indexing and resolution', () => {
       initSchema: () => void;
       upsertDocument: (relativePath: string, title: string, hash: string) => number;
       clearLinksForDocument: (docId: number) => void;
-      insertLink: (sourceId: number, targetTitle: string, lineNumber: number, context: string) => void;
+      insertLink: (
+        sourceId: number,
+        targetTitle: string,
+        lineNumber: number,
+        context: string
+      ) => void;
       resolveLinks: () => void;
       getDocumentCount: () => number;
       getAllDocuments: () => DbDoc[];
@@ -103,7 +108,22 @@ describe('FluxFlow stress_test indexing and resolution', () => {
 
     graphDb.resolveLinks();
 
-    expect(graphDb.getDocumentCount()).toBe(markdownFiles.length);
+    const dataDir = path.join(root, 'data');
+    const dataFiles = fs
+      .readdirSync(dataDir)
+      .filter(name => /\.(csv|txt)$/i.test(name))
+      .map(name => path.join(dataDir, name));
+    expect(dataFiles.length).toBeGreaterThanOrEqual(2);
+
+    for (const dataPath of dataFiles) {
+      const relPath = path.relative(root, dataPath).split(path.sep).join('/');
+      const content = fs.readFileSync(dataPath, 'utf-8');
+      const parsed = parseDocumentFile(content, relPath);
+      graphDb.upsertDocument(relPath, parsed.title, `h-${relPath}`);
+    }
+    graphDb.resolveLinks();
+
+    expect(graphDb.getDocumentCount()).toBe(markdownFiles.length + dataFiles.length);
 
     const docs = graphDb.getAllDocuments();
     const knownDocPaths = new Set(docs.map(d => d.path));
@@ -113,30 +133,48 @@ describe('FluxFlow stress_test indexing and resolution', () => {
 
     const transactionOutgoing = graphDb.getOutgoingLinks('workflow/transaction-intake.md');
     expect(
-      transactionOutgoing.some(l => l.targetTitle === 'message-queue' && l.targetPath === 'architecture/message-queue.md')
+      transactionOutgoing.some(
+        l => l.targetTitle === 'message-queue' && l.targetPath === 'architecture/message-queue.md'
+      )
     ).toBe(true);
 
     const readmeOutgoing = graphDb.getOutgoingLinks('README.md');
     expect(
       readmeOutgoing.some(
-        l => l.targetTitle === 'credit-policy-overview' && l.targetPath === 'credit-policy/credit-policy-overview.md'
+        l =>
+          l.targetTitle === 'credit-policy-overview' &&
+          l.targetPath === 'credit-policy/credit-policy-overview.md'
       )
     ).toBe(true);
 
-    const creditOverviewOutgoing = graphDb.getOutgoingLinks('credit-policy/credit-policy-overview.md');
+    const creditOverviewOutgoing = graphDb.getOutgoingLinks(
+      'credit-policy/credit-policy-overview.md'
+    );
     expect(
       creditOverviewOutgoing.some(
-        l => l.targetTitle === 'soft-pull-vs-hard-pull' && l.targetPath === 'equifax/soft-pull-vs-hard-pull.md'
+        l =>
+          l.targetTitle === 'soft-pull-vs-hard-pull' &&
+          l.targetPath === 'equifax/soft-pull-vs-hard-pull.md'
+      )
+    ).toBe(true);
+
+    const dealerOutgoing = graphDb.getOutgoingLinks('dealership/dealer-network.md');
+    expect(
+      dealerOutgoing.some(
+        l => l.targetTitle === 'data/dealer-codes.txt' && l.targetPath === 'data/dealer-codes.txt'
       )
     ).toBe(true);
 
     const declineOutgoing = graphDb.getOutgoingLinks('decisions/decline-reasons.md');
     expect(
-      declineOutgoing.some(l => l.targetTitle === 'dti-rules' && l.targetPath === 'credit-policy/dti-rules.md')
+      declineOutgoing.some(
+        l => l.targetTitle === 'dti-rules' && l.targetPath === 'credit-policy/dti-rules.md'
+      )
     ).toBe(true);
     expect(
       declineOutgoing.some(
-        l => l.targetTitle === 'ltv-guidelines' && l.targetPath === 'credit-policy/ltv-guidelines.md'
+        l =>
+          l.targetTitle === 'ltv-guidelines' && l.targetPath === 'credit-policy/ltv-guidelines.md'
       )
     ).toBe(true);
 
@@ -178,7 +216,9 @@ describe('FluxFlow stress_test indexing and resolution', () => {
       staleRepairRows[0].values.every((row: unknown[]) => row[0] === 'soft-pull-vs-hard-pull')
     ).toBe(true);
     expect(
-      staleRepairRows[0].values.some((row: unknown[]) => row[1] === 'equifax/soft-pull-vs-hard-pull.md')
+      staleRepairRows[0].values.some(
+        (row: unknown[]) => row[1] === 'equifax/soft-pull-vs-hard-pull.md'
+      )
     ).toBe(true);
 
     // Sanity checks for expected broken links in this vault.

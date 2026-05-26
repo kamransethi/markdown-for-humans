@@ -32,3 +32,11 @@
 ## Notes
 
 - Validation completed in one pass. Specification is ready for `/speckit.plan`.
+
+## Feature Acceptance (SC-001 to SC-005)
+
+- [ ] SC-001 Graph View opens from toolbar in one action (manual UX validation pending)
+- [x] SC-002 Stress corpus valid references resolve
+- [x] SC-003 Malformed unresolved targets reduced to zero
+- [x] SC-004 Graph/chat outputs restricted to open workspace folders
+- [x] SC-005 Save-driven graph refresh works without reopening panel

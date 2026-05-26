@@ -51,7 +51,8 @@ Sent on index/scope/active-document changes.
           "title": "foo",
           "uri": "file:///vault/foo.md",
           "kind": "resolved",
-          "isActive": true
+          "isActive": true,
+          "tags": [{ "label": "project" }]
         }
       ],
       "edges": [
@@ -65,6 +66,19 @@ Sent on index/scope/active-document changes.
     },
     "activeUri": "file:///vault/foo.md",
     "emptyState": null
+  }
+}
+```
+
+### `graph:select-node`
+
+Focus and center the graph on a note node (e.g. active editor file). Sent after `graph:init` / `graph:update` when the host wants explicit selection once the webview model is ready.
+
+```json
+{
+  "type": "graph:select-node",
+  "payload": {
+    "nodeId": "/vault::notes/foo.md"
   }
 }
 ```
