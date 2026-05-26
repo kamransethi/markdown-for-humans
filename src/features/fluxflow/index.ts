@@ -17,6 +17,8 @@ import { registerFluxFlowCommands } from './commands';
 import { openChatPanel } from './chatPanel';
 import { createEmbeddingEngine, type EmbeddingEngine } from './embeddingEngine';
 import { VectorStore } from './vectorStore';
+import { openGraphPanel } from './graphPanel';
+import { emitIndexChanged, emitScopeChanged } from './events';
 
 let database: GraphDatabase | null = null;
 let watcher: FluxFlowWatcher | null = null;
@@ -111,6 +113,10 @@ export async function initializeForWikilinks(context: vscode.ExtensionContext): 
   for (const folder of folders) {
     await openWikilinkFolder(folder.uri.fsPath);
   }
+  emitScopeChanged(
+    folders.map(folder => folder.uri.fsPath),
+    'initialize'
+  );
 
   // Track workspace folder additions/removals
   context.subscriptions.push(
@@ -129,6 +135,10 @@ export async function initializeForWikilinks(context: vscode.ExtensionContext): 
         wikilinkDatabases.delete(fp);
         notifyWikilinkChange();
       }
+      emitScopeChanged(
+        (vscode.workspace.workspaceFolders ?? []).map(folder => folder.uri.fsPath),
+        'workspace-folders-changed'
+      );
     })
   );
 
@@ -143,6 +153,7 @@ export async function initializeForWikilinks(context: vscode.ExtensionContext): 
     if (!db) return;
     await indexMarkdownFileForWikilinks(db, folder.uri.fsPath, uri.fsPath);
     notifyWikilinkChange();
+    emitIndexChanged(folder.uri.fsPath, 'wikilink');
   };
 
   const handleDelete = (uri: vscode.Uri): void => {
@@ -153,6 +164,7 @@ export async function initializeForWikilinks(context: vscode.ExtensionContext): 
     const relPath = path.relative(folder.uri.fsPath, uri.fsPath).split(path.sep).join('/');
     db.deleteDocument(relPath);
     notifyWikilinkChange();
+    emitIndexChanged(folder.uri.fsPath, 'wikilink');
   };
 
   context.subscriptions.push(
@@ -347,7 +359,7 @@ export function registerCommands(context: vscode.ExtensionContext): void {
     () => currentWorkspacePath,
     async () => {
       if (currentWorkspacePath) {
-        await fullIndex(currentWorkspacePath);
+        await fullIndex(currentWorkspacePath, { force: true });
       }
     },
     () => vectorStore,
@@ -364,6 +376,16 @@ export function registerCommands(context: vscode.ExtensionContext): void {
         () => currentWorkspacePath,
         () => vectorStore,
         () => embeddingEngine
+      );
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('gptAiMarkdownEditor.knowledgeGraph.openGraph', () => {
+      openGraphPanel(
+        context,
+        () => database,
+        () => currentWorkspacePath
       );
     })
   );
@@ -463,8 +485,9 @@ export async function initialize(_context: vscode.ExtensionContext): Promise<voi
 /**
  * Full re-index of all configured Knowledge Graph file types in the workspace.
  */
-async function fullIndex(workspacePath: string): Promise<void> {
+async function fullIndex(workspacePath: string, options?: { force?: boolean }): Promise<void> {
   if (!database) return;
+  const forceReindex = options?.force === true;
 
   const fileTypes = getConfiguredGraphFileTypes();
   const patterns = buildGraphGlobPatterns(fileTypes);
@@ -496,10 +519,10 @@ async function fullIndex(workspacePath: string): Promise<void> {
         continue; // Skip unreadable files
       }
 
-      // Skip unchanged files
+      // Skip unchanged files unless force mode is enabled.
       const hash = crypto.createHash('sha256').update(content).digest('hex');
       const existingHash = database.getDocumentHash(relPath);
-      if (existingHash === hash) {
+      if (!forceReindex && existingHash === hash) {
         progressState.indexDone++;
         continue;
       }
@@ -551,6 +574,7 @@ async function fullIndex(workspacePath: string): Promise<void> {
 
   progressState.indexDone = progressState.indexTotal;
   database.saveNow();
+  emitIndexChanged(workspacePath, 'kg-full');
   onProgressPush?.();
 }
 
@@ -602,6 +626,7 @@ function indexSingleFile(workspacePath: string, relPath: string): void {
 
   database.resolveLinks();
   database.scheduleSave();
+  emitIndexChanged(workspacePath, 'kg-incremental');
 
   // Remove old vectors for this doc and re-embed in background
   if (vectorStore) {
@@ -836,7 +861,7 @@ export function getGraphCallbacks(): {
       progressState.embedDone = 0;
       progressState.embedTotal = 0;
       vectorStore?.clear();
-      await fullIndex(wp);
+      await fullIndex(wp, { force: true });
       // Re-embed after rebuild
       if (vectorStore && embeddingEngine) {
         await embedChunksBackground();

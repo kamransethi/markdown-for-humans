@@ -122,6 +122,7 @@ export const MessageType = {
 
   // ── Knowledge Graph ──
   OPEN_GRAPH_CHAT: 'openGraphChat',
+  OPEN_GRAPH_VIEW: 'openGraphView',
 } as const;
 
 /** Union of all valid message type string values. */

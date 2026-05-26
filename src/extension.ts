@@ -7,7 +7,12 @@
 import * as vscode from 'vscode';
 import { MarkdownEditorProvider } from './editor/MarkdownEditorProvider';
 import { WordCountFeature } from './features/wordCount';
-import { getActiveWebviewPanel, getSelectedText, getActiveDocumentUri } from './activeWebview';
+import {
+  getActiveWebviewPanel,
+  getSelectedText,
+  getActiveDocumentUri,
+  setActiveDocumentUri,
+} from './activeWebview';
 import { MessageType } from './shared/messageTypes';
 import { getProviderAvailabilityCached } from './features/llm/providerAvailability';
 import { handleProviderError } from './features/llm/providerErrorMessages';
@@ -81,6 +86,10 @@ export function activate(context: vscode.ExtensionContext) {
   // Clear active context when switching to non-gpt-ai-markdown-editor editors
   context.subscriptions.push(
     vscode.window.onDidChangeActiveTextEditor(editor => {
+      if (editor?.document.uri.scheme === 'file' && editor.document.languageId === 'markdown') {
+        setActiveDocumentUri(editor.document.uri);
+      }
+
       // Custom editors appear as undefined in activeTextEditor, so if we get a text editor here, disable context
       if (editor && editor.document.languageId !== 'markdown') {
         // If a regular text editor is active, clear our active context
@@ -122,7 +131,7 @@ export function activate(context: vscode.ExtensionContext) {
   // Register wikilinks show-in-graph command (no-op if KG not active)
   context.subscriptions.push(
     vscode.commands.registerCommand('gptAiMarkdownEditor.showInGraph', async () => {
-      vscode.window.showInformationMessage('Knowledge Graph view not active.');
+      await vscode.commands.executeCommand('gptAiMarkdownEditor.knowledgeGraph.openGraph');
     })
   );
 

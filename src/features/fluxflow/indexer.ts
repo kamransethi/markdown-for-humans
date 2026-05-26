@@ -15,6 +15,11 @@ function normalizeWikiLinkTarget(rawTarget: string): string | null {
   let target = rawTarget.trim();
   if (!target) return null;
 
+  // In markdown tables, alias separators are often escaped as \| so the cell
+  // parser does not split on pipes. Normalize these escapes before parsing the
+  // wikilink target/alias components.
+  target = target.replace(/\\([\\|#\[\]])/g, '$1');
+
   const aliasIndex = target.indexOf('|');
   if (aliasIndex !== -1) {
     target = target.slice(0, aliasIndex).trim();

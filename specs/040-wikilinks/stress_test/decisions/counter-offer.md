@@ -6,16 +6,19 @@ A counter-offer is issued when the [[workflow/adjudication-engine|adjudication e
 
 ## When Counter-Offers Are Generated
 
-| Condition | Trigger | Adjustment Strategy |
-|-----------|---------|-------------------|
-| DTI slightly over max | DTI exceeds [[credit-policy/dti-rules\|tier max]] by ≤ 5 points | Extend term or reduce amount |
-| LTV slightly over max | LTV exceeds [[credit-policy/ltv-guidelines\|tier max]] by ≤ 15 points | Increase down payment |
-| Term not available | Requested term N/A for tier (per [[data/rate-sheet-2024-q4.csv]]) | Offer shorter available term |
-| Rate too low | Requested rate below tier floor | Offer tier-appropriate rate |
+
+| Condition             | Trigger                                                              | Adjustment Strategy          |
+| --------------------- | -------------------------------------------------------------------- | ---------------------------- |
+| DTI slightly over max | DTI exceeds [[credit-policy/dti-rules|tier max]] by ≤ 5 points       | Extend term or reduce amount |
+| LTV slightly over max | LTV exceeds [[credit-policy/ltv-guidelines|tier max]] by ≤ 15 points | Increase down payment        |
+| Term not available    | Requested term N/A for tier (per [[data/rate-sheet-2024-q4.csv]])    | Offer shorter available term |
+| Rate too low          | Requested rate below tier floor                                      | Offer tier-appropriate rate  |
+
 
 Counter-offers are **not** generated when:
+
 - Credit score is below 500 (auto decline per [[credit-policy/tier-matrix#deep-subprime]])
-- DTI exceeds tier max by > 5 points (too far gone — [[decisions/decline-reasons|decline]])
+- DTI exceeds tier max by &gt; 5 points (too far gone — [[decisions/decline-reasons|decline]])
 - Dealer is SUSPENDED or INACTIVE (see [[data/dealer-codes.txt]], [[data/error-codes.txt]] `ERR-4001`)
 
 ## Counter-Offer Generation Algorithm
@@ -37,23 +40,27 @@ Counter-offers are **not** generated when:
 
 The counter-offer payload sent back through the [[architecture/api-gateway|API]] to the [[dealership/dealer-network|dealer]] includes:
 
-| Field | Original | Counter-Offer |
-|-------|----------|--------------|
-| Term | 84 months | 60 months |
-| Rate | 5.49% | 9.49% |
-| Amount | $28,900 | $24,500 |
-| Monthly Payment | $412 | $510 |
-| Required Down Payment | $0 | $4,400 |
+
+| Field                 | Original  | Counter-Offer |
+| --------------------- | --------- | ------------- |
+| Term                  | 84 months | 60 months     |
+| Rate                  | 5.49%     | 9.49%         |
+| Amount                | $28,900   | $24,500       |
+| Monthly Payment       | $412      | $510          |
+| Required Down Payment | $0        | $4,400        |
+
 
 ## Dealer Response
 
 The dealer has **7 business days** to respond to a counter-offer:
 
-| Response | Action |
-|----------|--------|
-| **Accept** | Deal moves to [[decisions/approval-workflow]] with counter-offer terms |
-| **Decline** | Deal closed, [[decisions/decline-reasons#adverse-action-notices\|adverse action letter]] sent |
-| **No response** | Auto-expires, deal closed |
+
+| Response        | Action                                                                                       |
+| --------------- | -------------------------------------------------------------------------------------------- |
+| **Accept**      | Deal moves to [[decisions/approval-workflow]] with counter-offer terms                       |
+| **Decline**     | Deal closed, [[decisions/decline-reasons#adverse-action-notices|adverse action letter]] sent |
+| **No response** | Auto-expires, deal closed                                                                    |
+
 
 ## Worked Example
 
@@ -66,6 +73,7 @@ Deal `TXN-20241001-002` from [[data/sample-transactions.csv]]:
 - **LTV:** 105.3% — exceeds Subprime max of 95% by 10.3 points ✅ (within 15-point tolerance)
 
 **Counter-offer generated:**
+
 - Reduce amount to $25,500 (LTV → 93.2%)
 - Extend to 72 months (DTI → 37.1%)
 - Rate: 12.49% (Subprime 72-month rate from [[data/rate-sheet-2024-q4.csv]])
@@ -79,7 +87,5 @@ Deal `TXN-20241001-002` from [[data/sample-transactions.csv]]:
 - [[credit-policy/dti-rules]]
 - [[credit-policy/ltv-guidelines]]
 - [[workflow/stipulation-checklist]]
-
----
 
 #auto-lending #credit-policy #workflow/adjudication

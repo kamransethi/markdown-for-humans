@@ -10,6 +10,7 @@ let activeWebviewPanel: vscode.WebviewPanel | undefined;
 
 /** URI of the document currently open in the active custom editor. */
 let activeDocumentUri: vscode.Uri | undefined;
+const activeDocumentEmitter = new vscode.EventEmitter<vscode.Uri | undefined>();
 
 /** Currently selected text in the WYSIWYG editor (empty string = no selection). */
 let currentSelectedText = '';
@@ -29,7 +30,7 @@ export function setActiveWebviewPanel(panel: vscode.WebviewPanel | undefined) {
   activeWebviewPanel = panel;
   setActiveContext(!!panel);
   if (!panel) {
-    activeDocumentUri = undefined;
+    setActiveDocumentUri(undefined);
     currentSelectionRange = undefined;
   }
 }
@@ -51,12 +52,23 @@ export function getSelectedText(): string {
 
 /** Set the active document URI (called when custom editor resolves a document). */
 export function setActiveDocumentUri(uri: vscode.Uri | undefined) {
+  if (activeDocumentUri?.toString() === uri?.toString()) {
+    return;
+  }
   activeDocumentUri = uri;
+  activeDocumentEmitter.fire(uri);
 }
 
 /** Get the URI of the document in the active custom editor. */
 export function getActiveDocumentUri(): vscode.Uri | undefined {
   return activeDocumentUri;
+}
+
+/** Subscribe to active custom-editor document changes. */
+export function onDidActiveDocumentChange(
+  listener: (uri: vscode.Uri | undefined) => void
+): vscode.Disposable {
+  return activeDocumentEmitter.event(listener);
 }
 
 /** Update the selection range (ProseMirror positions). */
