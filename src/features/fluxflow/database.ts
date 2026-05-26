@@ -84,6 +84,16 @@ export function getWorkspaceHash(workspacePath: string): string {
   return crypto.createHash('sha256').update(workspacePath).digest('hex').slice(0, 16);
 }
 
+function normalizeStoredTargetTitle(rawTarget: string): string {
+  let target = rawTarget.trim().toLowerCase();
+  if (!target) return '';
+
+  target = target.replace(/\\([\\|#[\]])/g, '$1');
+  target = target.replace(/\\+$/g, '');
+
+  return target.trim();
+}
+
 export class GraphDatabase {
   private db: Database | null = null;
   private dbPath: string = '';
@@ -244,12 +254,74 @@ export class GraphDatabase {
   }
 
   resolveLinks(): void {
-    this.db!.run(
-      `UPDATE links SET target_id = (
-        SELECT d.id FROM documents d WHERE LOWER(d.title) = links.target_title
-        LIMIT 1
-      ) WHERE target_id IS NULL`
+    if (!this.db) return;
+
+    const docs = this.getAllDocuments().map(doc => {
+      const pathLower = doc.path.toLowerCase();
+      const stemLower = pathLower.endsWith('.markdown')
+        ? pathLower.slice(0, -9)
+        : pathLower.endsWith('.md')
+          ? pathLower.slice(0, -3)
+          : pathLower;
+
+      return {
+        id: doc.id,
+        path: doc.path,
+        pathLower,
+        stemLower,
+        titleLower: (doc.title || '').toLowerCase(),
+      };
+    });
+
+    const unresolvedRows = this.db.exec(
+      'SELECT id, target_title FROM links WHERE target_id IS NULL ORDER BY id ASC'
     );
+    if (!unresolvedRows.length) return;
+
+    for (const row of unresolvedRows[0].values) {
+      const linkId = row[0] as number;
+      const rawTarget = String(row[1] ?? '')
+        .trim()
+        .toLowerCase();
+      if (!rawTarget) continue;
+
+      const target = normalizeStoredTargetTitle(rawTarget);
+      if (!target) continue;
+
+      if (target !== rawTarget) {
+        this.db.run('UPDATE links SET target_title = ? WHERE id = ?', [target, linkId]);
+      }
+
+      const ranked = docs
+        .map(doc => {
+          let rank = Number.POSITIVE_INFINITY;
+
+          if (doc.pathLower === target) {
+            rank = 0;
+          } else if (doc.titleLower === target) {
+            rank = 1;
+          } else if (doc.stemLower === target) {
+            rank = 2;
+          } else if (doc.pathLower === `${target}.md` || doc.pathLower === `${target}.markdown`) {
+            rank = 3;
+          } else if (
+            doc.pathLower.endsWith(`/${target}.md`) ||
+            doc.pathLower.endsWith(`/${target}.markdown`)
+          ) {
+            rank = 4;
+          }
+
+          return { rank, doc };
+        })
+        .filter(item => Number.isFinite(item.rank))
+        .sort((a, b) => a.rank - b.rank || a.doc.path.localeCompare(b.doc.path));
+
+      if (!ranked.length) continue;
+
+      this.db.run('UPDATE links SET target_id = ? WHERE id = ?', [ranked[0].doc.id, linkId]);
+    }
+
+    this.dirty = true;
   }
 
   getBacklinks(docPath: string): BacklinkEntry[] {
@@ -365,6 +437,18 @@ export class GraphDatabase {
       tag: row[0] as string,
       count: row[1] as number,
     }));
+  }
+
+  getTagsForDocument(docPath: string): string[] {
+    const rows = this.db!.exec(
+      `SELECT t.tag FROM tags t
+       INNER JOIN documents d ON d.id = t.doc_id
+       WHERE d.path = ?
+       ORDER BY t.tag`,
+      [docPath]
+    );
+    if (!rows.length) return [];
+    return rows[0].values.map((row: any[]) => row[0] as string);
   }
 
   // --- Property operations ---

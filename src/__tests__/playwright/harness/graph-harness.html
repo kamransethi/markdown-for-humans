@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Graph Webview Harness</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      min-height: 100%;
+      background: #101010;
+      color: #fff;
+      font-family: system-ui, sans-serif;
+    }
+    .graph-shell {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      width: 100vw;
+    }
+    #statusLine {
+      padding: 12px 16px;
+      color: #e5e7eb;
+      font-size: 14px;
+      background: #111827;
+      border-bottom: 1px solid #2d3748;
+    }
+    foam-graph {
+      flex: 1;
+      min-height: 0;
+    }
+  </style>
+  <script>
+    window.__vscodeMessageQueue = [];
+    window.acquireVsCodeApi = function () {
+      return {
+        postMessage(message) {
+          window.__vscodeMessageQueue.push(message);
+          if (message.type === 'graph:refresh') {
+            window.setTimeout(() => {
+              const payload = {
+                reason: 'panel_opened',
+                graph: {
+                  nodes: [
+                    {
+                      nodeId: 'note1',
+                      title: 'Note 1',
+                      kind: 'resolved',
+                      isActive: false,
+                      uri: 'file:///workspace/note1.md',
+                      workspacePath: '/workspace',
+                    },
+                    {
+                      nodeId: 'note2',
+                      title: 'Note 2',
+                      kind: 'resolved',
+                      isActive: false,
+                      uri: 'file:///workspace/note2.md',
+                      workspacePath: '/workspace',
+                    },
+                  ],
+                  edges: [
+                    {
+                      source: 'note1',
+                      target: 'note2',
+                    },
+                  ],
+                },
+                activeUri: null,
+                emptyState: null,
+              };
+              window.dispatchEvent(new MessageEvent('message', { data: { type: 'graph:init', payload } }));
+            }, 0);
+          }
+        },
+      };
+    };
+  </script>
+  <link rel="stylesheet" href="../../../../dist/graph.css" />
+</head>
+<body>
+  <div class="graph-shell">
+    <div id="statusLine">waiting for graph</div>
+    <foam-graph></foam-graph>
+  </div>
+  <script src="../../../../dist/graph.js"></script>
+</body>
+</html>

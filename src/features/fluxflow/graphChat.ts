@@ -65,6 +65,17 @@ export interface ParsedQuery {
   pathPrefix: string | null;
 }
 
+export function isWorkspaceScoped(
+  relativeDocPath: string,
+  workspacePath: string,
+  openWorkspacePaths: string[]
+): boolean {
+  if (openWorkspacePaths.length === 0) {
+    return true;
+  }
+  return openWorkspacePaths.includes(workspacePath) && !relativeDocPath.startsWith('..');
+}
+
 // ── Query parsing ──
 
 export function parseQuery(raw: string): ParsedQuery {
@@ -259,7 +270,8 @@ export async function* streamAnswer(
   history: ChatMessage[],
   abortSignal?: AbortSignal,
   vectorStore?: VectorStore | null,
-  embeddingEngine?: EmbeddingEngine | null
+  embeddingEngine?: EmbeddingEngine | null,
+  openWorkspacePaths: string[] = [workspacePath]
 ): AsyncGenerator<StreamEvent> {
   // 1. Parse query for filters
   const parsed = parseQuery(query);
@@ -293,6 +305,10 @@ export async function* streamAnswer(
     // Fallback to FTS-only search
     sources = searchContext(db, parsed, topK, ftsSnippetTokens);
   }
+
+  sources = sources.filter(source =>
+    isWorkspaceScoped(source.path, workspacePath, openWorkspacePaths)
+  );
 
   // Yield sources immediately so the UI can show them before LLM responds
   yield { type: 'sources', sources };

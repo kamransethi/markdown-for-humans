@@ -920,10 +920,17 @@ export function createFormattingToolbar(
             items.push({ label: '', action: () => {}, isSeparator: true });
             items.push({ label: 'GRAPH', action: () => {}, isSectionLabel: true });
             items.push({
+              label: 'Graph View',
+              icon: { name: 'graph-line', fallback: '◉' },
+              action: () => {
+                (window as any).vscode?.postMessage({ type: MessageType.OPEN_GRAPH_VIEW });
+              },
+            });
+            items.push({
               label: 'Graph Chat',
               icon: { name: 'sparkle', fallback: '✨' },
               action: () => {
-                (window as any).vscode?.postMessage({ type: 'openGraphChat' });
+                (window as any).vscode?.postMessage({ type: MessageType.OPEN_GRAPH_CHAT });
               },
             });
           }

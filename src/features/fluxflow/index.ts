@@ -17,6 +17,10 @@ import { registerFluxFlowCommands } from './commands';
 import { openChatPanel } from './chatPanel';
 import { createEmbeddingEngine, type EmbeddingEngine } from './embeddingEngine';
 import { VectorStore } from './vectorStore';
+import { openGraphPanel } from './graphPanel';
+import { WIKILINK_GRAPH_RESOURCE_EXTENSIONS } from './graphFileTypes';
+import { emitActiveDocumentChanged, emitIndexChanged, emitScopeChanged } from './events';
+import { onDidActiveDocumentChange } from '../../activeWebview';
 
 let database: GraphDatabase | null = null;
 let watcher: FluxFlowWatcher | null = null;
@@ -32,6 +36,17 @@ let disposables: vscode.Disposable[] = [];
 const wikilinkDatabases = new Map<string, GraphDatabase>();
 export function getWikilinkDatabase(workspacePath: string): GraphDatabase | undefined {
   return wikilinkDatabases.get(workspacePath);
+}
+
+function getOpenWorkspacePaths(): string[] {
+  return (vscode.workspace.workspaceFolders ?? []).map(folder => folder.uri.fsPath);
+}
+
+function getScopedProjectionContexts(): Array<{ workspacePath: string; db: GraphDatabase }> {
+  const openPaths = new Set(getOpenWorkspacePaths());
+  return Array.from(wikilinkDatabases.entries())
+    .filter(([workspacePath]) => openPaths.has(workspacePath))
+    .map(([workspacePath, db]) => ({ workspacePath, db }));
 }
 const wikilinkChangeCallbacks: Array<() => void> = [];
 
@@ -72,6 +87,36 @@ async function indexMarkdownFileForWikilinks(
   }
 }
 
+async function indexGraphResourceFileForWikilinks(
+  db: GraphDatabase,
+  workspacePath: string,
+  fsPath: string
+): Promise<void> {
+  try {
+    const content = await fs.promises.readFile(fsPath, 'utf-8');
+    const relPath = path.relative(workspacePath, fsPath).split(path.sep).join('/');
+    const parsed = parseDocumentFile(content, relPath);
+    db.upsertDocument(relPath, parsed.title, '');
+  } catch {
+    // Skip unreadable files
+  }
+}
+
+async function indexGraphResourceFilesForWikilinks(
+  workspacePath: string,
+  db: GraphDatabase
+): Promise<void> {
+  for (const ext of WIKILINK_GRAPH_RESOURCE_EXTENSIONS) {
+    const files = await vscode.workspace.findFiles(
+      new vscode.RelativePattern(workspacePath, `**/*${ext}`),
+      '**/node_modules/**'
+    );
+    for (const fileUri of files) {
+      await indexGraphResourceFileForWikilinks(db, workspacePath, fileUri.fsPath);
+    }
+  }
+}
+
 async function indexAllMarkdownForWikilinks(
   workspacePath: string,
   db: GraphDatabase
@@ -83,6 +128,7 @@ async function indexAllMarkdownForWikilinks(
   for (const fileUri of mdFiles) {
     await indexMarkdownFileForWikilinks(db, workspacePath, fileUri.fsPath);
   }
+  await indexGraphResourceFilesForWikilinks(workspacePath, db);
   db.resolveLinks();
   db.saveNow();
 }
@@ -111,6 +157,10 @@ export async function initializeForWikilinks(context: vscode.ExtensionContext): 
   for (const folder of folders) {
     await openWikilinkFolder(folder.uri.fsPath);
   }
+  emitScopeChanged(
+    folders.map(folder => folder.uri.fsPath),
+    'initialize'
+  );
 
   // Track workspace folder additions/removals
   context.subscriptions.push(
@@ -129,6 +179,10 @@ export async function initializeForWikilinks(context: vscode.ExtensionContext): 
         wikilinkDatabases.delete(fp);
         notifyWikilinkChange();
       }
+      emitScopeChanged(
+        (vscode.workspace.workspaceFolders ?? []).map(folder => folder.uri.fsPath),
+        'workspace-folders-changed'
+      );
     })
   );
 
@@ -142,7 +196,22 @@ export async function initializeForWikilinks(context: vscode.ExtensionContext): 
     const db = wikilinkDatabases.get(folder.uri.fsPath);
     if (!db) return;
     await indexMarkdownFileForWikilinks(db, folder.uri.fsPath, uri.fsPath);
+    db.resolveLinks();
+    db.saveNow();
     notifyWikilinkChange();
+    emitIndexChanged(folder.uri.fsPath, 'wikilink');
+  };
+
+  const handleResourceUpsert = async (uri: vscode.Uri): Promise<void> => {
+    const folder = vscode.workspace.getWorkspaceFolder(uri);
+    if (!folder) return;
+    const db = wikilinkDatabases.get(folder.uri.fsPath);
+    if (!db) return;
+    await indexGraphResourceFileForWikilinks(db, folder.uri.fsPath, uri.fsPath);
+    db.resolveLinks();
+    db.saveNow();
+    notifyWikilinkChange();
+    emitIndexChanged(folder.uri.fsPath, 'wikilink-resource');
   };
 
   const handleDelete = (uri: vscode.Uri): void => {
@@ -153,12 +222,29 @@ export async function initializeForWikilinks(context: vscode.ExtensionContext): 
     const relPath = path.relative(folder.uri.fsPath, uri.fsPath).split(path.sep).join('/');
     db.deleteDocument(relPath);
     notifyWikilinkChange();
+    emitIndexChanged(folder.uri.fsPath, 'wikilink');
   };
 
   context.subscriptions.push(
     mdWatcher.onDidChange(uri => void handleUpsert(uri)),
     mdWatcher.onDidCreate(uri => void handleUpsert(uri)),
     mdWatcher.onDidDelete(handleDelete)
+  );
+
+  for (const ext of WIKILINK_GRAPH_RESOURCE_EXTENSIONS) {
+    const resourceWatcher = vscode.workspace.createFileSystemWatcher(`**/*${ext}`);
+    context.subscriptions.push(resourceWatcher);
+    context.subscriptions.push(
+      resourceWatcher.onDidChange(uri => void handleResourceUpsert(uri)),
+      resourceWatcher.onDidCreate(uri => void handleResourceUpsert(uri)),
+      resourceWatcher.onDidDelete(handleDelete)
+    );
+  }
+
+  context.subscriptions.push(
+    onDidActiveDocumentChange(uri => {
+      emitActiveDocumentChanged(uri?.toString() ?? null);
+    })
   );
 }
 
@@ -326,7 +412,7 @@ function getConfiguredGraphFileTypes(): string[] {
   const workspaceCfg = vscode.workspace.getConfiguration('gptAiMarkdownEditor');
   const rawTypes = workspaceCfg.get<string>(
     'knowledgeGraph.indexedFileTypes',
-    '.md, .csv, .html, .drawio.svg, .bpmn'
+    '.md, .csv, .txt, .html, .drawio.svg, .bpmn'
   );
   const fileTypes = normalizeGraphFileTypes(rawTypes);
   return fileTypes.length > 0 ? fileTypes : ['.md'];
@@ -347,7 +433,7 @@ export function registerCommands(context: vscode.ExtensionContext): void {
     () => currentWorkspacePath,
     async () => {
       if (currentWorkspacePath) {
-        await fullIndex(currentWorkspacePath);
+        await fullIndex(currentWorkspacePath, { force: true });
       }
     },
     () => vectorStore,
@@ -363,7 +449,18 @@ export function registerCommands(context: vscode.ExtensionContext): void {
         () => database,
         () => currentWorkspacePath,
         () => vectorStore,
-        () => embeddingEngine
+        () => embeddingEngine,
+        () => getOpenWorkspacePaths()
+      );
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('gptAiMarkdownEditor.knowledgeGraph.openGraph', () => {
+      openGraphPanel(
+        context,
+        () => getScopedProjectionContexts(),
+        () => getOpenWorkspacePaths()
       );
     })
   );
@@ -463,8 +560,9 @@ export async function initialize(_context: vscode.ExtensionContext): Promise<voi
 /**
  * Full re-index of all configured Knowledge Graph file types in the workspace.
  */
-async function fullIndex(workspacePath: string): Promise<void> {
+async function fullIndex(workspacePath: string, options?: { force?: boolean }): Promise<void> {
   if (!database) return;
+  const forceReindex = options?.force === true;
 
   const fileTypes = getConfiguredGraphFileTypes();
   const patterns = buildGraphGlobPatterns(fileTypes);
@@ -496,10 +594,10 @@ async function fullIndex(workspacePath: string): Promise<void> {
         continue; // Skip unreadable files
       }
 
-      // Skip unchanged files
+      // Skip unchanged files unless force mode is enabled.
       const hash = crypto.createHash('sha256').update(content).digest('hex');
       const existingHash = database.getDocumentHash(relPath);
-      if (existingHash === hash) {
+      if (!forceReindex && existingHash === hash) {
         progressState.indexDone++;
         continue;
       }
@@ -551,6 +649,7 @@ async function fullIndex(workspacePath: string): Promise<void> {
 
   progressState.indexDone = progressState.indexTotal;
   database.saveNow();
+  emitIndexChanged(workspacePath, 'kg-full');
   onProgressPush?.();
 }
 
@@ -602,6 +701,7 @@ function indexSingleFile(workspacePath: string, relPath: string): void {
 
   database.resolveLinks();
   database.scheduleSave();
+  emitIndexChanged(workspacePath, 'kg-incremental');
 
   // Remove old vectors for this doc and re-embed in background
   if (vectorStore) {
@@ -836,7 +936,7 @@ export function getGraphCallbacks(): {
       progressState.embedDone = 0;
       progressState.embedTotal = 0;
       vectorStore?.clear();
-      await fullIndex(wp);
+      await fullIndex(wp, { force: true });
       // Re-embed after rebuild
       if (vectorStore && embeddingEngine) {
         await embedChunksBackground();

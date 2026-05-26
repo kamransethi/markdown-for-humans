@@ -21,6 +21,7 @@ export function registerUiHandlers(router: MessageRouter): void {
   router.register(MessageType.EDIT_MERMAID_SOURCE, handleEditMermaidSource);
   router.register(MessageType.UPDATE_SETTING, handleUpdateSetting);
   router.register(MessageType.OPEN_GRAPH_CHAT, handleOpenGraphChat);
+  router.register(MessageType.OPEN_GRAPH_VIEW, handleOpenGraphView);
 }
 
 /**
@@ -358,4 +359,14 @@ export async function handleOpenGraphChat(
   _ctx: HandlerContext
 ): Promise<void> {
   await vscode.commands.executeCommand('gptAiMarkdownEditor.graphChat');
+}
+
+/**
+ * Handle request to open Graph View interface.
+ */
+export async function handleOpenGraphView(
+  _message: { type: string; [key: string]: unknown },
+  _ctx: HandlerContext
+): Promise<void> {
+  await vscode.commands.executeCommand('gptAiMarkdownEditor.knowledgeGraph.openGraph');
 }

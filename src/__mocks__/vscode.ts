@@ -97,7 +97,16 @@ export const commands = {
 
 // Mock Uri
 export const Uri = {
-  file: jest.fn((path: string) => ({ fsPath: path, path, scheme: 'file' })),
+  file: jest.fn((filePath: string) => {
+    const normalized = filePath.replace(/\\/g, '/');
+    const uriString = normalized.startsWith('/') ? `file://${normalized}` : `file:///${normalized}`;
+    return {
+      fsPath: filePath,
+      path: normalized,
+      scheme: 'file',
+      toString: () => uriString,
+    };
+  }),
   parse: jest.fn((uri: string) => ({
     fsPath: uri,
     path: uri,

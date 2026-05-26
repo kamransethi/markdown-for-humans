@@ -38,7 +38,8 @@ export function openChatPanel(
   getDb: () => GraphDatabase | null,
   getWorkspacePath: () => string | null,
   getVectorStore?: () => VectorStore | null,
-  getEmbeddingEngine?: () => EmbeddingEngine | null
+  getEmbeddingEngine?: () => EmbeddingEngine | null,
+  getOpenWorkspacePaths?: () => string[]
 ): void {
   if (currentPanel) {
     currentPanel.reveal(vscode.ViewColumn.Beside);
@@ -65,7 +66,15 @@ export function openChatPanel(
 
   panel.webview.onDidReceiveMessage(
     msg =>
-      handleChatMessage(msg, panel, getDb, getWorkspacePath, getVectorStore, getEmbeddingEngine),
+      handleChatMessage(
+        msg,
+        panel,
+        getDb,
+        getWorkspacePath,
+        getVectorStore,
+        getEmbeddingEngine,
+        getOpenWorkspacePaths
+      ),
     undefined,
     context.subscriptions
   );
@@ -138,7 +147,8 @@ async function handleChatMessage(
   getDb: () => GraphDatabase | null,
   getWorkspacePath: () => string | null,
   getVectorStore?: () => VectorStore | null,
-  getEmbeddingEngine?: () => EmbeddingEngine | null
+  getEmbeddingEngine?: () => EmbeddingEngine | null,
+  getOpenWorkspacePaths?: () => string[]
 ): Promise<void> {
   switch (msg.type) {
     case MSG.SEND: {
@@ -170,7 +180,8 @@ async function handleChatMessage(
           conversationHistory,
           signal,
           getVectorStore?.() ?? null,
-          getEmbeddingEngine?.() ?? null
+          getEmbeddingEngine?.() ?? null,
+          getOpenWorkspacePaths?.() ?? [workspacePath]
         );
 
         let fullText = '';

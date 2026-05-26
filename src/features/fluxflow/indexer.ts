@@ -5,28 +5,12 @@
  */
 
 import * as path from 'path';
+import { extractHashtags, extractTagsFromProp } from './hashtags';
+import { isGraphAttachmentPath, isGraphImagePath, normalizeWikiLinkTarget } from './graphFileTypes';
 import type { ParsedDocument } from './types';
 
 const WIKI_LINK_REGEX = /\[\[([^\]]+)\]\]/g;
 const MARKDOWN_LINK_REGEX = /!?\[[^\]]*\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g;
-const INLINE_TAG_REGEX = /(?:^|\s)#([a-zA-Z][a-zA-Z0-9_/-]*)/g;
-
-function normalizeWikiLinkTarget(rawTarget: string): string | null {
-  let target = rawTarget.trim();
-  if (!target) return null;
-
-  const aliasIndex = target.indexOf('|');
-  if (aliasIndex !== -1) {
-    target = target.slice(0, aliasIndex).trim();
-  }
-
-  const clean = target.split('#')[0].trim();
-  if (!clean) return null;
-
-  const base = path.basename(clean);
-  const normalized = stripFileTitle(base).trim().toLowerCase();
-  return normalized || null;
-}
 
 function normalizeMarkdownLinkTarget(rawTarget: string): string | null {
   let target = rawTarget.trim();
@@ -53,8 +37,14 @@ function normalizeMarkdownLinkTarget(rawTarget: string): string | null {
     // Keep original when URI decoding fails.
   }
 
-  const clean = target.split('#')[0].split('?')[0].trim();
+  let clean = target.split('#')[0].split('?')[0].trim();
   if (!clean) return null;
+
+  clean = clean.replace(/\\/g, '/').replace(/^\.\//, '').replace(/^\//, '');
+  const cleanLower = clean.toLowerCase();
+  if (isGraphAttachmentPath(cleanLower) || isGraphImagePath(cleanLower)) {
+    return cleanLower;
+  }
 
   const base = path.basename(clean);
   const normalized = stripFileTitle(base).trim().toLowerCase();
@@ -92,10 +82,11 @@ function parseFrontmatter(content: string): {
     const rawValue = line.slice(colonIdx + 1).trim();
 
     if (key === 'tags') {
-      const cleaned = rawValue.replace(/[[\]]/g, '');
-      for (const t of cleaned.split(',')) {
-        const tag = t.trim().toLowerCase().replace(/^#/, '');
-        if (tag) tags.push(tag);
+      const cleaned = rawValue.trim();
+      if (cleaned.startsWith('[') && cleaned.endsWith(']')) {
+        tags.push(...extractTagsFromProp(cleaned.slice(1, -1)));
+      } else {
+        tags.push(...extractTagsFromProp(cleaned.replace(/[[\]]/g, '')));
       }
     } else {
       properties.push({ key, value: rawValue });
@@ -169,32 +160,32 @@ export function parseMarkdownFile(content: string, filePath: string): ParsedDocu
     }
   }
 
-  // Extract inline #tags (skip code fences)
+  // Extract inline #tags from body only (skip code fences)
   const inlineTags: ParsedDocument['tags'] = [];
+  const bodyLines = body.split('\n');
   let inCodeBlock = false;
-  for (const line of lines) {
+  for (const line of bodyLines) {
     if (line.trimStart().startsWith('```')) {
       inCodeBlock = !inCodeBlock;
       continue;
     }
     if (inCodeBlock) continue;
 
-    let match: RegExpExecArray | null;
-    INLINE_TAG_REGEX.lastIndex = 0;
-    while ((match = INLINE_TAG_REGEX.exec(line)) !== null) {
-      inlineTags.push({ tag: match[1].toLowerCase(), source: 'inline' });
+    for (const { label } of extractHashtags(line)) {
+      inlineTags.push({ tag: label, source: 'inline' });
     }
   }
 
-  // Combine and deduplicate tags
+  // Combine and deduplicate tags (case-insensitive)
   const allTags: ParsedDocument['tags'] = [
     ...fmTags.map(tag => ({ tag, source: 'frontmatter' as const })),
     ...inlineTags,
   ];
   const seen = new Set<string>();
   const dedupedTags = allTags.filter(t => {
-    if (seen.has(t.tag)) return false;
-    seen.add(t.tag);
+    const key = t.tag.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
     return true;
   });
 
