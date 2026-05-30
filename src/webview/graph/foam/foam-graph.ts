@@ -170,7 +170,6 @@ export class FoamGraph extends LitElement {
         .labels=${this.labels}
         .nodeFontSizeMultiplier=${this.nodeFontSizeMultiplier}
         .nodeSizeMultiplier=${this.nodeSizeMultiplier}
-        .hoverNodeId=${this.hoverNodeId}
         .linkWidthMultiplier=${this.linkWidthMultiplier}
         .animateLinks=${this.animateLinks}
         .maxFitZoom=${this.maxFitZoom}
